@@ -255,9 +255,12 @@ if [ "$ENABLE_SYNC" = true ]; then
     rclone sync "${R2_REMOTE_NAME}:comfyui-assets/loras" /workspace/ComfyUI/models/loras/ -P --transfers 8
     
     echo "  -> 同步 Workflows (v3.1 路径修正)..."
-    # 修正路径: user/default/workflows
     mkdir -p /workspace/ComfyUI/user/default/workflows
     rclone sync "${R2_REMOTE_NAME}:comfyui-assets/workflow" /workspace/ComfyUI/user/default/workflows/ -P --transfers 8
+
+    echo "  -> 同步 Wildcards..."
+    mkdir -p /workspace/ComfyUI/custom_nodes/comfyui-dynamicprompts/wildcards
+    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/wildcards" /workspace/ComfyUI/custom_nodes/comfyui-dynamicprompts/wildcards/ -P --transfers 8
 fi
 
 # AuraSR
