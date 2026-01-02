@@ -68,35 +68,70 @@ fi
 # =================================================
 # 2. 基础系统环境
 # =================================================
-echo "--> [2/8] 安装系统依赖..."
+# =================================================
+# 2. 基础系统环境 (升级 Python 3.13 & 动态 Torch)
+# =================================================
+echo "--> [2/8] 安装系统依赖与 Python 3.13..."
 
 # --- 🛠️ 修复 Vast.ai SSH 问题 ---
 if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
-    echo "⚠️ 检测到 SSH 主机密钥缺失 (Vast.ai 环境)，正在生成..."
-    mkdir -p /run/sshd
-    ssh-keygen -A
+    mkdir -p /run/sshd && ssh-keygen -A
 fi
+! pgrep -x "sshd" > /dev/null && /usr/sbin/sshd
 
-# 检查 sshd 是否运行，没运行则启动
-if ! pgrep -x "sshd" > /dev/null; then
-    echo "⚠️ SSH 服务未运行，正在启动..."
-    /usr/sbin/sshd
-fi
-echo "✅ SSH 服务检查完毕。"
-
+# 配置 Tmux 鼠标支持
 echo "set -g mouse on" > ~/.tmux.conf
 
-# 解锁 PIP
-[ -f "/usr/lib/python3.12/EXTERNALLY-MANAGED" ] && rm /usr/lib/python3.12/EXTERNALLY-MANAGED
-export PIP_BREAK_SYSTEM_PACKAGES=1
-
-# 安装 APT 包
+# 2.1 安装基础工具 & Python 3.13 源
 apt-get update -qq
 apt-get install -y --no-install-recommends \
-    aria2 rclone tmux jq screen git git-lfs ffmpeg \
-    cuda-toolkit libgl1 libglib2.0-0 libsm6 libxext6 ninja-build build-essential python3-dev
+    software-properties-common git curl wget aria2 rclone tmux jq screen \
+    ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 build-essential
+
+add-apt-repository ppa:deadsnakes/ppa -y
+apt-get update -qq
+
+# 2.2 安装 Python 3.13 开发环境
+apt-get install -y python3.13 python3.13-venv python3.13-dev python3.13-distutils
+
+# 2.3 创建并激活虚拟环境
+echo "  -> 创建 Python 3.13 虚拟环境..."
+python3.13 -m venv /workspace/venv
+
+# 注入 PATH
+export PATH="/workspace/venv/bin:$PATH"
+echo 'export PATH="/workspace/venv/bin:$PATH"' >> ~/.bashrc
+
+# 2.4 动态安装 PyTorch (适配当前 CUDA 版本)
+echo "  -> 正在检测系统 CUDA 版本..."
+pip install --upgrade pip setuptools wheel
+
+# 获取 CUDA 版本 (例如 12.8 或 13.0)
+if command -v nvcc >/dev/null; then
+    CUDA_VER_RAW=$(nvcc --version | grep "release" | sed 's/.*release //' | cut -d',' -f1)
+else
+    # 备选：从 nvidia-smi 获取
+    CUDA_VER_RAW=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | cut -d. -f1,2 | head -n1)
+fi
+
+# 格式化为 PyTorch Tag (去除小数点: 12.8 -> 128, 13.0 -> 130)
+CUDA_TAG="cu$(echo "$CUDA_VER_RAW" | tr -d '.')"
+echo "     系统 CUDA: $CUDA_VER_RAW | 目标 Tag: $CUDA_TAG"
+
+echo "  -> 安装 PyTorch 2.8 ($CUDA_TAG)..."
+
+# 逻辑：
+# 1. 尝试从稳定版源下载对应 CUDA 版本的包
+# 2. 如果失败 (可能 CUDA 13 太新)，尝试从 Nightly 源下载
+pip install torch==2.8.0 torchvision torchaudio \
+    --index-url "https://download.pytorch.org/whl/$CUDA_TAG" \
+    || \
+    (echo "⚠️ 稳定源未找到适配 $CUDA_TAG 的包，尝试 Nightly 源..." && \
+     pip install --pre torch torchvision torchaudio \
+     --index-url "https://download.pytorch.org/whl/nightly/$CUDA_TAG")
 
 git lfs install
+echo "✅ Python 环境已升级: $(python --version)"
 
 
 # =================================================
