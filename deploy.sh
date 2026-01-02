@@ -217,7 +217,7 @@ fi
 
 
 # =================================================
-# 7. 资源下载 (智能分流版)
+# 7. 资源下载 (修正版: 去除后台等待，防止卡死)
 # =================================================
 echo "--> [7/8] 下载资源..."
 
@@ -230,84 +230,74 @@ from civitdl.api.sorter import SorterData
 import os
 
 def sort_model(model_dict, version_dict, filename, root_path):
-    # 1. 获取类型并标准化 (兼容 CivitAI 的大小写混乱)
     raw_type = model_dict.get('type', 'unknown')
     m_type = raw_type.lower()
-    
-    print(f"  -> [Sorter] 正在处理: {model_dict.get('name')} | 类型: {raw_type}")
+    print(f"  -> [Sorter] 处理: {model_dict.get('name')} | 类型: {raw_type}")
 
-    # 2. 映射到 ComfyUI 目录结构
     type_map = {
         "checkpoint": "checkpoints",
         "lora": "loras",
         "locon": "loras",
         "dora": "loras",
-        "textualinversion": "embeddings",
-        "hypernetwork": "hypernetworks",
         "controlnet": "controlnet",
         "vae": "vae",
         "upscaler": "upscale_models",
-        "motionmodule": "animatediff_models",
-        "poses": "poses"
+        "motionmodule": "animatediff_models"
     }
     
     target_subfolder = type_map.get(m_type, "extras")
-    
-    # 3. 构造路径
-    # 策略: 采用子文件夹模式 /models/[type]/[Model_Name]/[files]
-    # 这样可以保持图片、JSON 和模型文件在一起，且 ComfyUI 支持递归读取
     final_dir = os.path.join(root_path, target_subfolder, model_dict.get('name', 'Unknown_Model'))
     
-    return SorterData(
-        model_dir_path=final_dir,
-        metadata_dir_path=final_dir,
-        image_dir_path=final_dir,
-        prompt_dir_path=final_dir
-    )
+    return SorterData(final_dir, final_dir, final_dir, final_dir)
 EOF
 fi
 
 # -------------------------------------------------
 # 7.2 整合 ID 并批量下载
 # -------------------------------------------------
-# 整合所有可能的变量输入 (ALL_MODEL_IDS 是新推荐变量)
 RAW_IDS="${CHECKPOINT_IDS},${CONTROLNET_IDS},${UPSCALER_IDS},${LORA_IDS},${ALL_MODEL_IDS}"
-
-# 清洗数据: 换行转逗号，去除空行，去重，最后转为逗号分隔字符串
 CLEAN_IDS=$(echo "$RAW_IDS" | tr ',' '\n' | grep -v '^\s*$' | sort -u | tr '\n' ',' | sed 's/,$//')
 
 if [ "$ENABLE_CIVITDL" = true ] && [ -n "$CLEAN_IDS" ]; then
     BATCH_FILE="/workspace/civitai_batch.txt"
     echo "$CLEAN_IDS" > "$BATCH_FILE"
     
-    COUNT=$(echo "$CLEAN_IDS" | tr -cd ',' | wc -c)
-    COUNT=$((COUNT + 1))
-    
-    echo "  -> 识别到 $COUNT 个模型任务，启动批量下载..."
-    echo "  -> 目标根目录: /workspace/ComfyUI/models"
-    
-    # 核心命令: 指定 batch文件, 根目录, 和自定义 sorter
+    echo "  -> 启动 CivitDL 批量下载..."
+    # 这里的 civitdl 是同步运行的，下载完才会走下一步
     civitdl "$BATCH_FILE" "/workspace/ComfyUI/models" \
         --sorter "/workspace/runpod_sorter.py" \
-        || echo "⚠️ 部分 CivitDL 下载任务可能有误，请检查日志。"
-else
-    echo "ℹ️ 未提供模型 ID (ALL_MODEL_IDS)，跳过 CivitDL 下载。"
+        || echo "⚠️ CivitDL 下载出现部分错误 (不影响后续启动)"
 fi
 
 # -------------------------------------------------
-# 7.3 其他资源 (Rclone / AuraSR)
+# 7.3 其他资源 (Rclone / AuraSR) - 关键修正点
 # -------------------------------------------------
 if [ "$ENABLE_SYNC" = true ]; then
-    echo "  -> 执行 Rclone 同步 (LoRA/Workflows)..."
-    # 这里依旧保留 Rclone，方便同步私有模型或工作流
+    echo "  -> [Sync] 同步 Rclone 数据..."
+    # ⚠️ 修正：去掉了 & 和 wait，强制前台运行。
+    # 如果 Rclone 卡住，你会直接看到它卡在哪，而不是看着 100% 发呆
     mkdir -p /workspace/ComfyUI/user/default/workflows
-    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/workflow" /workspace/ComfyUI/user/default/workflows/ -P --transfers 8 &
+    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/workflow" /workspace/ComfyUI/user/default/workflows/ -P --transfers 8
     
-    # 如果你也想用 Rclone 同步私有 LoRA，可以保留下面这行，否则 CivitDL 已经负责下载了
-    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/loras" /workspace/ComfyUI/models/loras/ -P --transfers 8 &
-    
-    wait
+    # 如果你也同步 LoRA，请取消下面注释（同样去掉了 &）
+    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/loras" /workspace/ComfyUI/models/loras/ -P --transfers 8
 fi
+
+echo "  -> [Download] 下载 AuraSR..."
+mkdir -p "/workspace/ComfyUI/models/Aura-SR"
+
+# ⚠️ 修正：改用 aria2c 前台下载，速度快且有进度条
+aria2c -x 8 -s 8 --console-log-level=error --summary-interval=1 \
+    -d "/workspace/ComfyUI/models/Aura-SR" \
+    -o "model.safetensors" \
+    "https://huggingface.co/fal/AuraSR-v2/resolve/main/model.safetensors?download=true"
+
+aria2c -x 8 -s 8 --console-log-level=error --summary-interval=1 \
+    -d "/workspace/ComfyUI/models/Aura-SR" \
+    -o "config.json" \
+    "https://huggingface.co/fal/AuraSR-v2/resolve/main/config.json?download=true"
+
+echo "✅ 资源下载阶段完成。"
 
 # AuraSR (HuggingFace直链，不走CivitDL)
 echo "  -> 下载 AuraSR..."
