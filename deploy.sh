@@ -332,7 +332,7 @@ if [ "$ENABLE_CIVITDL" = true ] && [ -n "$CLEAN_IDS" ]; then
     # 这里的 civitdl 是同步运行的，下载完才会走下一步
     civitdl "$BATCH_FILE" "/workspace/ComfyUI/models" \
         --sorter "/workspace/runpod_sorter.py" \
-        || echo "⚠️ CivitDL 下载出现部分错误 (不影响后续启动)"
+        || echo "⚠️ CivitDL 下载出现部分错误"
 fi
 
 # -------------------------------------------------
