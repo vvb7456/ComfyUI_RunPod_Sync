@@ -138,29 +138,81 @@ wait $COMFY_PID 2>/dev/null || true
 
 
 # =================================================
-# 4. 加速组件注入 (SageAttention & FlashAttn)
+# 4. 加速组件注入 (SageAttention V3 & FlashAttn V3)
 # =================================================
-echo "--> [4/8] 注入高性能加速组件..."
+echo "--> [4/8] 注入加速组件..."
 
-pip install --no-cache-dir ninja xformers
+# 安装编译基础依赖
+pip install --no-cache-dir ninja packaging wheel
 
-# 修复 PyTorch CUDA 版本检查
-TORCH_CPP_EXT=$(python -c "import torch.utils.cpp_extension as t; print(t.__file__)")
-sed -i 's/raise RuntimeError(CUDA_MISMATCH_MESSAGE/print("⚠️ [Auto-Fix] Ignoring CUDA Mismatch: " + CUDA_MISMATCH_MESSAGE/g' "$TORCH_CPP_EXT"
+# -------------------------------------------------
+# 4.1 架构探测与策略分流
+# -------------------------------------------------
+CUDA_CAP_MAJOR=$(python -c "import torch; print(torch.cuda.get_device_capability()[0])" 2>/dev/null | tail -n 1)
+CUDA_CAP_MINOR=$(python -c "import torch; print(torch.cuda.get_device_capability()[1])" 2>/dev/null | tail -n 1)
 
-# 获取算力并编译 SageAttention
-COMPUTE_CAP=$(python -c "import torch; print(f'{torch.cuda.get_device_capability()[0]}.{torch.cuda.get_device_capability()[1]}')")
-echo "     当前 GPU 算力: sm_${COMPUTE_CAP}"
-export TORCH_CUDA_ARCH_LIST="${COMPUTE_CAP}"
+# 清除可能存在的空白字符
+CUDA_CAP_MAJOR=$(echo "$CUDA_CAP_MAJOR" | tr -d '[:space:]')
+CUDA_CAP_MINOR=$(echo "$CUDA_CAP_MINOR" | tr -d '[:space:]')
+
+echo "     当前 GPU 算力: sm_${CUDA_CAP_MAJOR}.${CUDA_CAP_MINOR}"
+
+if [ -z "$CUDA_CAP_MAJOR" ]; then
+    echo "❌ 无法获取 GPU 算力，默认为兼容模式 (sm_86)"
+    CUDA_CAP_MAJOR=8
+    CUDA_CAP_MINOR=6
+fi
+
+# 设置编译并行度与目标架构
 export MAX_JOBS=8
+export TORCH_CUDA_ARCH_LIST="${CUDA_CAP_MAJOR}.${CUDA_CAP_MINOR}"
 
 cd /workspace
-git clone https://github.com/thu-ml/SageAttention.git
-cd SageAttention
-pip install . --no-build-isolation || echo "⚠️ SageAttention 编译失败(非致命)。"
 
-pip install --no-cache-dir flash-attn --no-build-isolation
-pip install --upgrade --no-cache-dir torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu124
+# -------------------------------------------------
+# 4.2 FlashAttention 分流安装
+# -------------------------------------------------
+# 逻辑：
+# Major 12 (Blackwell 5090/B200) -> 满足 >= 9 -> FA3
+# Major 9  (Hopper H100)        -> 满足 >= 9 -> FA3
+# Major 8  (Ada 4090 / Ampere)  -> 不满足     -> FA2
+if [ "$CUDA_CAP_MAJOR" -ge 9 ]; then
+    echo "🚀 检测到 Hopper/Blackwell 架构 (sm_${CUDA_CAP_MAJOR}.x)，正在编译 FlashAttention-3 (Beta)..."
+    git clone https://github.com/Dao-AILab/flash-attention.git
+    cd flash-attention
+    # FA3 源码位于 hopper 子目录
+    cd hopper
+    python setup.py install
+    cd /workspace
+else
+    echo "ℹ️ 检测到 Ada/Ampere 架构 (sm_${CUDA_CAP_MAJOR}.x)，正在安装 FlashAttention-2..."
+    pip install --no-cache-dir flash-attn --no-build-isolation
+fi
+
+# -------------------------------------------------
+# 4.3 SageAttention 分流安装
+# -------------------------------------------------
+git clone https://github.com/thu-ml/SageAttention.git
+
+# 逻辑：
+# Major 12 (Blackwell) -> 满足 >= 10 -> SA3 (FP4)
+# Major 8/9            -> 不满足     -> SA2
+if [ "$CUDA_CAP_MAJOR" -ge 10 ]; then
+    echo "🚀 检测到 Blackwell 架构 (RTX 5090/B200)，正在编译 SageAttention-3 (FP4版)..."
+    cd SageAttention/sageattention3_blackwell
+    python setup.py install
+else
+    echo "ℹ️ 非 Blackwell 架构，正在编译 SageAttention-2 (通用版)..."
+    cd SageAttention
+    # 安装标准版 (包含 SageAttention2++)
+    pip install . --no-build-isolation
+fi
+
+# 清理编译缓存
+cd /workspace
+rm -rf SageAttention flash-attention
+
+echo "✅ 加速组件注入完成。"
 
 
 # =================================================
@@ -180,7 +232,7 @@ echo "  -> 安装插件依赖..."
 find /workspace/ComfyUI/custom_nodes -name "requirements.txt" -type f -print0 | while IFS= read -r -d $'\0' file; do
     pip install --no-cache-dir -r "$file" || echo "⚠️ 依赖警告: $file"
 done
-
+echo "✅ 插件安装完成完成。"
 
 # =================================================
 # 6. 配置工具 (CivitDL & Rclone)
@@ -325,9 +377,34 @@ cat <<EOF > /workspace/onedrive_sync.sh
 #!/bin/bash
 SOURCE_DIR="/workspace/ComfyUI/output"
 REMOTE_PATH="${ONEDRIVE_REMOTE_NAME}:ComfyUI_Transfer"
+
+echo "--- Sync Service Started ---"
+echo "Watching: \$SOURCE_DIR"
+echo "Target:   \$REMOTE_PATH"
+
 while true; do
-    if find "\$SOURCE_DIR" -type f -mmin +0.49 2>/dev/null | read; then
-        rclone move "\$SOURCE_DIR" "\$REMOTE_PATH" --min-age "30s" --exclude ".*/**" --ignore-existing --transfers 4 -P
+    # Check for files older than 30s
+    # Added ! -path '*/.*' to ignore hidden files/folders (syncs with rclone logic)
+    FOUND_FILES=\$(find "\$SOURCE_DIR" -type f -mmin +0.5 ! -path '*/.*' -print -quit)
+
+    if [ -n "\$FOUND_FILES" ]; then
+        TIME=\$(date '+%H:%M:%S')
+        echo "[\$TIME] New files detected. Uploading..."
+
+        # Start rclone move
+        rclone move "\$SOURCE_DIR" "\$REMOTE_PATH" \\
+            --min-age "30s" \\
+            --exclude ".*/**" \\
+            --ignore-existing \\
+            --transfers 4 \\
+            --stats-one-line \\
+            -v
+
+        if [ \$? -eq 0 ]; then
+            echo "[\$TIME] Upload Success."
+        else
+            echo "[\$TIME] Upload Failed or Partial."
+        fi
     fi
     sleep 10
 done
@@ -337,12 +414,30 @@ EOF
     echo "✅ 同步服务已启动 (Tmux: sync)"
 fi
 
-# 启动 ComfyUI
+# 启动 ComfyUI (针对 Torch 2.8 + Blackwell 优化)
+# --use-pytorch-cross-attention: 强制使用原生 SDP，配合 FA3/SA3
+# --fast: 启用 torch.compile 图编译优化
+# --disable-xformers: 显式禁用 (虽然没装，但以防万一插件尝试加载)
 tmux new-session -d -s comfy
-tmux send-keys -t comfy "cd /workspace/ComfyUI && python main.py --listen 0.0.0.0 --port 8188" C-m
-echo "✅ ComfyUI 服务已启动 (Tmux: comfy)"
+tmux send-keys -t comfy "cd /workspace/ComfyUI && python main.py --listen 0.0.0.0 --port 8188 --use-pytorch-cross-attention --fast --disable-xformers" C-m
+
+if [ "$CUDA_CAP_MAJOR" -ge 10 ]; then
+    ARCH_MODE="Blackwell (Native FP4)"
+    FA_STATUS="FA3 (Beta)"
+    SA_STATUS="SA3 (Microscaling)"
+elif [ "$CUDA_CAP_MAJOR" -ge 9 ]; then
+    ARCH_MODE="Hopper (H100)"
+    FA_STATUS="FA3 (Beta)"
+    SA_STATUS="SA2 (Standard)"
+else
+    ARCH_MODE="Ada/Ampere (Legacy)"
+    FA_STATUS="FA2"
+    SA_STATUS="SA2"
+fi
 
 echo "================================================="
-echo "  🚀 部署完成！"
-echo "  模型下载日志: 查看上方输出"
+echo "  🚀 部署完成！ [$ARCH_MODE]"
+echo "  Core: Torch 2.8 | $FA_STATUS: Enabled | $SA_STATUS: Enabled"
+echo "  服务端口: 8188 (已启动)"
+echo "  同步服务: $(if [ "$ENABLE_SYNC" = true ]; then echo "Running (Tmux: sync)"; else echo "Disabled"; fi)"
 echo "================================================="
