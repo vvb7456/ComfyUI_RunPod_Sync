@@ -70,9 +70,9 @@
 4.  **填入启动脚本**:
     将 `setup.sh` 的内容粘贴至 **Container Start Command** (Docker Command) 中。
     *或者*
-    将脚本托管在 Gist/Github，填入:
+    直接使用本仓库地址:
     ```bash
-    bash -c "$(wget -qO- https://your-gist-url/setup.sh)"
+    bash -c "wget -O deploy.sh https://raw.githubusercontent.com/vvb7456/ComfyUI_RunPod_Sync/refs/heads/main/deploy.sh && chmod +x deploy.sh && ./deploy.sh && tail -f /workspace/setup.log"
     ```
 5.  **启动**: 等待约 3-5 分钟（视模型下载量而定）。
 
@@ -106,3 +106,6 @@ SSH 连接到 Pod 后：
 ├── controlnet/
 ├── vae/
 └── ...
+```
+
+## 6. Cloudflare R2 / OneDrive 结构
