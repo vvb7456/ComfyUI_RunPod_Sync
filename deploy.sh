@@ -70,6 +70,20 @@ fi
 # =================================================
 echo "--> [2/8] 安装系统依赖..."
 
+# --- 🛠️ 修复 Vast.ai SSH 问题 ---
+if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
+    echo "⚠️ 检测到 SSH 主机密钥缺失 (Vast.ai 环境)，正在生成..."
+    mkdir -p /run/sshd
+    ssh-keygen -A
+fi
+
+# 检查 sshd 是否运行，没运行则启动
+if ! pgrep -x "sshd" > /dev/null; then
+    echo "⚠️ SSH 服务未运行，正在启动..."
+    /usr/sbin/sshd
+fi
+echo "✅ SSH 服务检查完毕。"
+
 echo "set -g mouse on" > ~/.tmux.conf
 
 # 解锁 PIP
