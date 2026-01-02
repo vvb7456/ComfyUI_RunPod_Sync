@@ -38,7 +38,7 @@
 | `RCLONE_CONF_BASE64` | 否 | Base64 编码后的 `rclone.conf` 文件内容 (生成方法见下文)。 |
 | `R2_REMOTE_NAME` | 否 | Rclone 配置中 R2 存储桶的名称，用于拉取私有资源。 |
 | `ONEDRIVE_REMOTE_NAME` | 否 | Rclone 配置中 OneDrive 的名称，用于上传产出物。 |
-| `PLUGIN_URLS` | 否 | 自定义插件 Git 地址列表，逗号分隔。如不填则使用脚本内置的默认推荐列表。 |
+| `PLUGIN_URLS` | 否 | 自定义插件 Git 地址列表，逗号分隔。如不填则使用脚本内置的默认列表。 |
 
 > **兼容性说明**: 旧版变量 `CHECKPOINT_IDS`, `LORA_IDS` 依然有效，脚本会自动将其合并至 `ALL_MODEL_IDS` 处理。
 
@@ -74,7 +74,8 @@
     ```bash
     bash -c "wget -O deploy.sh https://raw.githubusercontent.com/vvb7456/ComfyUI_RunPod_Sync/refs/heads/main/deploy.sh && chmod +x deploy.sh && ./deploy.sh && tail -f /workspace/setup.log"
     ```
-5.  **启动**: 等待约 3-5 分钟（视模型下载量而定）。
+    > **提示**: 无需配置永久存储，请将Volume disk设置为0
+5.  **启动**: 等待约 5-20 分钟（视模型下载量而定）。
 
 ### 4.3 验证运行
 
@@ -95,7 +96,7 @@ SSH 连接到 Pod 后：
 
 ## 5. 目录结构说明
 
-脚本运行后，`/workspace/ComfyUI/models` 将呈现如下结构（由 Sorter 自动整理）：
+脚本运行后，`/workspace/ComfyUI/models` 将呈现如下结构：
 
 ```text
 /models
@@ -108,4 +109,34 @@ SSH 连接到 Pod 后：
 └── ...
 ```
 
-## 6. Cloudflare R2 / OneDrive 结构
+## 6. Cloudflare R2 / OneDrive 目录结构规范
+
+为了确保同步功能正常工作，请在你的云存储端预先建立以下目录结构。
+
+### 6.1 R2 存储桶 (输入源)
+脚本默认从 R2 拉取私有工作流或模型。请确保你的 R2 Bucket 根目录下包含 `comfyui-assets` 文件夹：
+
+```text
+[R2_Bucket_Root]
+└── comfyui-assets/
+    ├── workflow/              # 存放 .json 工作流文件
+    │   ├── My_Wan2.1_Workflow.json
+    │   └── ... (这些文件会被同步到 ComfyUI 侧边栏/加载菜单)
+    │
+    └── loras/                 # 存放私有 LoRA 模型
+        └── Private_Model.safetensors
+```
+
+### 6.2 OneDrive (输出端)
+脚本启动后，会监控 `/workspace/ComfyUI/output` 目录，一旦生成图片或视频（且文件静止超过 30秒），会自动**移动**（Move）到 OneDrive 的以下目录：
+
+```text
+[OneDrive_Root]
+└── ComfyUI_Transfer/          # 脚本自动创建此文件夹
+    ├── ComfyUI_0001.png
+    ├── AnimateDiff_0001.mp4
+    └── ...
+```
+
+> **提示**: 同步脚本使用 `rclone move` ，文件上传成功后会从 RunPod 硬盘中删除，以节省 Pod 磁盘空间。
+
