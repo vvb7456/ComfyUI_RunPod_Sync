@@ -74,7 +74,7 @@
     ```bash
     bash -c "wget -O deploy.sh https://raw.githubusercontent.com/vvb7456/ComfyUI_RunPod_Sync/refs/heads/main/deploy.sh && chmod +x deploy.sh && ./deploy.sh && tail -f /workspace/setup.log"
     ```
-    > **提示**: 无需配置永久存储，请将Volume disk设置为0
+    > **提示**: 无需配置永久存储，请将Volume disk设置为0，Container disk大小按需设置，如果需要下载大量模型，请确保磁盘空间大于要下载的模型大小。
 5.  **启动**: 等待约 5-20 分钟（视模型下载量而定）。
 
 ### 4.3 验证运行
