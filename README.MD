@@ -1,4 +1,4 @@
-# RunPod ComfyUI Automation Script (v3.2)
+# 艾萝工坊 RunPod ComfyUI Automation Script (v3.2)
 
 针对 RunPod 环境定制的 ComfyUI 全自动化部署脚本。集成 SageAttention 加速（适配 Wan2.2）、CivitDL 并行下载与自动分类、Rclone 双向同步功能。
 
