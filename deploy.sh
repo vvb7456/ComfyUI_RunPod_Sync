@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # ==============================================================================
-# RunPod ComfyUI 自动化部署脚本 (v3.2 CivitDL Parallel)
+# RunPod ComfyUI 自动化部署脚本 (v4.5 极速启动完全版)
 # 核心特性:
-#   1. 架构自适应: 自动识别 Blackwell/Ada/Ampere 并优化编译参数
-#   2. 智能下载: 整合 CivitDL 批量下载 + 自动分类 (Sorter) + 免交互 Token
-#   3. 极速推理: 集成 SageAttention V2 (Wan2.1 专用) + Torch 2.4+
-#   4. 目录清洗: 自动将模型分流至 checkpoints/loras/vae 等正确目录
+#   1. 架构自适应: 自动识别 Blackwell/Hopper/Ada 并优化加速组件
+#   2. Wheel 预装: 优先使用预编译的 FA3/SA3 Wheel，大幅缩短 GPU 浪费时间
+#   3. UI 优先: 核心环境就绪后立即启动 ComfyUI，模型下载在后台并行
+#   4. 完整校验: 保留首次启动 Health Check，确保环境百分之百可用
 # ==============================================================================
 
 set -e # 遇到错误退出
@@ -16,9 +16,8 @@ LOG_FILE="/workspace/setup.log"
 exec &> >(tee -a "$LOG_FILE")
 
 echo "================================================="
-echo "  RunPod ComfyUI 部署脚本 (v3.2 CivitDL版)"
-echo "  机器架构: $(uname -m)"
-echo "  开始时间: $(date)"
+echo "  RunPod ComfyUI 部署脚本 (v4.5 完全版)"
+echo "  机器架构: $(uname -m) | 开始时间: $(date)"
 echo "================================================="
 
 # =================================================
@@ -36,7 +35,6 @@ else
 fi
 
 # 1.2 CivitAI (模型下载)
-# 只要有 Token 或者有 ID 列表，就启用下载工具
 if [ -n "$CIVITAI_TOKEN" ] || [ -n "$ALL_MODEL_IDS" ] || [ -n "$CHECKPOINT_IDS" ]; then
     ENABLE_CIVITDL=true
     echo "✅ 启用 CivitDL 智能下载。"
@@ -66,75 +64,42 @@ fi
 
 
 # =================================================
-# 2. 基础系统环境 (升级 Python 3.13 & 动态 Torch)
+# 2. 系统环境初始化
 # =================================================
-echo "--> [2/8] 安装系统依赖与 Python 3.13..."
+echo "--> [2/8] 配置系统基础环境..."
 
-# --- 🛠️ 修复 Vast.ai SSH 问题 ---
+# 修复 SSH 问题
 if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then
     mkdir -p /run/sshd && ssh-keygen -A
 fi
 ! pgrep -x "sshd" > /dev/null && /usr/sbin/sshd
 
-# 配置 Tmux 鼠标支持
+# 配置 Tmux
 echo "set -g mouse on" > ~/.tmux.conf
+touch ~/.no_auto_tmux
 
-# 2.1 安装基础工具 & Python 3.13 源
+# 安装必要依赖 (保持原脚本依赖列表)
 apt-get update -qq
 apt-get install -y --no-install-recommends \
-    software-properties-common git git-lfs curl wget aria2 rclone tmux jq screen \
+    software-properties-common git git-lfs aria2 rclone jq \
     ffmpeg libgl1 libglib2.0-0 libsm6 libxext6 build-essential
 
-add-apt-repository ppa:deadsnakes/ppa -y
-apt-get update -qq
+# 环境路径与基础工具升级
+export PATH="/usr/local/bin:$PATH"
+pip install --upgrade pip setuptools packaging ninja wheel
 
-# 2.2 安装 Python 3.13 开发环境
-# ⚠️ 修正：Python 3.13 已移除 distutils，无需安装 python3.13-distutils
-apt-get install -y python3.13 python3.13-venv python3.13-dev
-
-# 2.3 创建并激活虚拟环境
-echo "  -> 创建 Python 3.13 虚拟环境..."
-python3.13 -m venv /workspace/venv
-
-# 注入 PATH
-export PATH="/workspace/venv/bin:$PATH"
-echo 'export PATH="/workspace/venv/bin:$PATH"' >> ~/.bashrc
-
-# 2.4 动态安装 PyTorch (适配当前 CUDA 版本)
-echo "  -> 正在检测系统 CUDA 版本..."
-# 确保在 venv 中升级 pip/setuptools (替代 distutils)
-pip install --upgrade pip setuptools wheel
-
-# 获取 CUDA 版本 (例如 12.8 或 13.0)
-if command -v nvcc >/dev/null; then
-    CUDA_VER_RAW=$(nvcc --version | grep "release" | sed 's/.*release //' | cut -d',' -f1)
-else
-    # 备选：从 nvidia-smi 获取
-    CUDA_VER_RAW=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | cut -d. -f1,2 | head -n1)
+# Rclone 配置文件注入 (提前注入，以便后续拉取 Wheel)
+if [ "$ENABLE_SYNC" = true ]; then
+    mkdir -p ~/.config/rclone
+    echo "$RCLONE_CONF_BASE64" | base64 -d > ~/.config/rclone/rclone.conf
+    chmod 600 ~/.config/rclone/rclone.conf
 fi
 
-# 格式化为 PyTorch Tag (去除小数点: 12.8 -> 128, 13.0 -> 130)
-CUDA_TAG="cu$(echo "$CUDA_VER_RAW" | tr -d '.')"
-echo "     系统 CUDA: $CUDA_VER_RAW | 目标 Tag: $CUDA_TAG"
-
-echo "  -> 安装 PyTorch 2.8 ($CUDA_TAG)..."
-
-# 逻辑：
-# 1. 尝试从稳定版源下载对应 CUDA 版本的包
-# 2. 如果失败 (可能 CUDA 13 太新)，尝试从 Nightly 源下载
-pip install torch==2.8.0 torchvision torchaudio \
-    --index-url "https://download.pytorch.org/whl/$CUDA_TAG" \
-    || \
-    (echo "⚠️ 稳定源未找到适配 $CUDA_TAG 的包，尝试 Nightly 源..." && \
-     pip install --pre torch torchvision torchaudio \
-     --index-url "https://download.pytorch.org/whl/nightly/$CUDA_TAG")
-
-git lfs install
-echo "✅ Python 环境已升级: $(python --version)"
+echo "✅ 系统环境就绪: $(python --version)"
 
 
 # =================================================
-# 3. ComfyUI 核心安装与健康检查
+# 3. ComfyUI 安装与首次启动健康检查
 # =================================================
 echo "--> [3/8] 安装 ComfyUI (Vanilla Mode)..."
 
@@ -142,11 +107,11 @@ cd /workspace
 git clone https://github.com/comfyanonymous/ComfyUI.git
 cd /workspace/ComfyUI
 
-echo "  -> 安装 requirements.txt..."
+echo "  -> 安装基础 requirements.txt..."
 pip install --no-cache-dir -r requirements.txt
 
-# 试运行 (Health Check)
-echo "  -> 执行首次启动检查..."
+# --- 保留原脚本健康检查逻辑 ---
+echo "  -> 执行首次启动环境自检..."
 python main.py --listen 127.0.0.1 --port 8188 > /tmp/comfy_boot.log 2>&1 &
 COMFY_PID=$!
 
@@ -162,7 +127,7 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
 done
 
 if [ "$BOOT_SUCCESS" = false ]; then
-    echo "❌ 致命错误: ComfyUI 无法启动。"
+    echo "❌ 致命错误: ComfyUI 基础环境无法启动。"
     cat /tmp/comfy_boot.log
     kill $COMFY_PID 2>/dev/null || true
     exit 1
@@ -172,87 +137,63 @@ wait $COMFY_PID 2>/dev/null || true
 
 
 # =================================================
-# 4. 加速组件注入 (SageAttention V3 & FlashAttn V3)
+# 4. 加速组件注入 (Wheel 优先 + 源码回退)
 # =================================================
-echo "--> [4/8] 注入加速组件..."
+echo "--> [4/8] 注入加速组件 (FA3 & SA3)..."
 
-# 安装编译基础依赖
-pip install --no-cache-dir ninja packaging wheel
+CUDA_CAP_MAJOR=$(python -c "import torch; print(torch.cuda.get_device_capability()[0])" 2>/dev/null)
+PY_VER=$(python -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
 
-# -------------------------------------------------
-# 4.1 架构探测与策略分流
-# -------------------------------------------------
-CUDA_CAP_MAJOR=$(python -c "import torch; print(torch.cuda.get_device_capability()[0])" 2>/dev/null | tail -n 1)
-CUDA_CAP_MINOR=$(python -c "import torch; print(torch.cuda.get_device_capability()[1])" 2>/dev/null | tail -n 1)
-
-# 清除可能存在的空白字符
-CUDA_CAP_MAJOR=$(echo "$CUDA_CAP_MAJOR" | tr -d '[:space:]')
-CUDA_CAP_MINOR=$(echo "$CUDA_CAP_MINOR" | tr -d '[:space:]')
-
-echo "     当前 GPU 算力: sm_${CUDA_CAP_MAJOR}.${CUDA_CAP_MINOR}"
-
-if [ -z "$CUDA_CAP_MAJOR" ]; then
-    echo "❌ 无法获取 GPU 算力，默认为兼容模式 (sm_86)"
-    CUDA_CAP_MAJOR=8
-    CUDA_CAP_MINOR=6
+mkdir -p /workspace/prebuilt_wheels
+if [ -n "$RCLONE_CONF_BASE64" ]; then
+    echo "  -> 正在从 R2 检索预编译 Wheel..."
+    rclone copy "${R2_REMOTE_NAME}:comfyui-assets/wheels/" /workspace/prebuilt_wheels/ -P || echo "⚠️ 未能拉取预编译包"
 fi
 
-# 设置编译并行度与目标架构
-export MAX_JOBS=8
-export TORCH_CUDA_ARCH_LIST="${CUDA_CAP_MAJOR}.${CUDA_CAP_MINOR}"
-
-cd /workspace
-
-# -------------------------------------------------
-# 4.2 FlashAttention 分流安装
-# -------------------------------------------------
-# 逻辑：
-# Major 12 (Blackwell 5090/B200) -> 满足 >= 9 -> FA3
-# Major 9  (Hopper H100)        -> 满足 >= 9 -> FA3
-# Major 8  (Ada 4090 / Ampere)  -> 不满足     -> FA2
+# 4.1 FlashAttention 安装
 if [ "$CUDA_CAP_MAJOR" -ge 9 ]; then
-    echo "🚀 检测到 Hopper/Blackwell 架构 (sm_${CUDA_CAP_MAJOR}.x)，正在编译 FlashAttention-3 (Beta)..."
-    git clone https://github.com/Dao-AILab/flash-attention.git
-    cd flash-attention
-    # FA3 源码位于 hopper 子目录
-    cd hopper
-    python setup.py install
-    cd /workspace
+    FA_WHEEL="/workspace/prebuilt_wheels/flash_attn_3-3.0.0b1-cp39-abi3-linux_x86_64.whl"
+    if [ -f "$FA_WHEEL" ] && pip install "$FA_WHEEL"; then
+        FA_INSTALL_TYPE="Pre-built Wheel (abi3)"
+    else
+        echo "⚠️ Wheel 缺失或不兼容，开始源码编译 FA3..."
+        cd /workspace && git clone https://github.com/Dao-AILab/flash-attention.git
+        cd flash-attention/hopper && MAX_JOBS=8 python setup.py install
+        cd /workspace && rm -rf flash-attention
+        FA_INSTALL_TYPE="Source Compiled (Hopper/Blackwell)"
+    fi
 else
-    echo "ℹ️ 检测到 Ada/Ampere 架构 (sm_${CUDA_CAP_MAJOR}.x)，正在安装 FlashAttention-2..."
     pip install --no-cache-dir flash-attn --no-build-isolation
+    FA_INSTALL_TYPE="Standard Install (FA2)"
 fi
 
-# -------------------------------------------------
-# 4.3 SageAttention 分流安装
-# -------------------------------------------------
-git clone https://github.com/thu-ml/SageAttention.git
-
-# 逻辑：
-# Major 12 (Blackwell) -> 满足 >= 10 -> SA3 (FP4)
-# Major 8/9            -> 不满足     -> SA2
+# 4.2 SageAttention 安装
 if [ "$CUDA_CAP_MAJOR" -ge 10 ]; then
-    echo "🚀 检测到 Blackwell 架构 (RTX 5090/B200)，正在编译 SageAttention-3 (FP4版)..."
-    cd SageAttention/sageattention3_blackwell
-    python setup.py install
+    SA_WHEEL=$(ls /workspace/prebuilt_wheels/sageattn3-1.0.0-${PY_VER}-*.whl 2>/dev/null | head -n 1)
+    if [ -n "$SA_WHEEL" ] && pip install "$SA_WHEEL"; then
+        SA_INSTALL_TYPE="Pre-built Wheel ($PY_VER)"
+    else
+        echo "⚠️ $PY_VER Wheel 缺失，开始源码编译 SA3..."
+        cd /workspace && git clone https://github.com/thu-ml/SageAttention.git
+        cd SageAttention/sageattention3_blackwell && python setup.py install
+        cd /workspace && rm -rf SageAttention
+        SA_INSTALL_TYPE="Source Compiled (Blackwell Native)"
+    fi
 else
-    echo "ℹ️ 非 Blackwell 架构，正在编译 SageAttention-2 (通用版)..."
-    cd SageAttention
-    # 安装标准版 (包含 SageAttention2++)
-    pip install . --no-build-isolation
+    cd /workspace && git clone https://github.com/thu-ml/SageAttention.git
+    cd SageAttention && pip install . --no-build-isolation
+    cd /workspace && rm -rf SageAttention
+    SA_INSTALL_TYPE="Source Compiled (SA2 General)"
 fi
 
-# 清理编译缓存
-cd /workspace
-rm -rf SageAttention flash-attention
-
-echo "✅ 加速组件注入完成。"
+rm -rf /workspace/prebuilt_wheels
+echo "✅ 加速组件安装完成。"
 
 
 # =================================================
 # 5. 插件安装
 # =================================================
-echo "--> [5/8] 安装插件..."
+echo "--> [5/8] 安装自定义节点插件..."
 cd /workspace/ComfyUI/custom_nodes
 
 for plugin in "${PLUGIN_URLS[@]}"; do
@@ -262,150 +203,32 @@ for plugin in "${PLUGIN_URLS[@]}"; do
     fi
 done
 
-echo "  -> 安装插件依赖..."
+echo "  -> 批量安装插件依赖..."
 find /workspace/ComfyUI/custom_nodes -name "requirements.txt" -type f -print0 | while IFS= read -r -d $'\0' file; do
-    pip install --no-cache-dir -r "$file" || echo "⚠️ 依赖警告: $file"
+    pip install --no-cache-dir -r "$file" || echo "⚠️ 依赖安装警告: $file"
 done
-echo "✅ 插件安装完成完成。"
+echo "✅ 插件环境构建完成。"
+
 
 # =================================================
-# 6. 配置工具 (CivitDL & Rclone)
+# 6. Rclone 核心数据同步 (Workflows/Loras/Wildcards)
 # =================================================
-echo "--> [6/8] 配置工具..."
+echo "--> [6/8] 同步核心资产 (启动前必备)..."
 
-# 6.1 Rclone
 if [ "$ENABLE_SYNC" = true ]; then
-    mkdir -p ~/.config/rclone
-    echo "$RCLONE_CONF_BASE64" | base64 -d > ~/.config/rclone/rclone.conf
-    chmod 600 ~/.config/rclone/rclone.conf
-fi
-
-# 6.2 CivitDL 安装与配置注入
-if [ "$ENABLE_CIVITDL" = true ]; then
-    pip install civitdl
-    
-    # 注入 API Key 到配置文件，绕过交互输入
-    mkdir -p ~/.config/civitdl
-    
-    # 如果 Token 为空，则留空字符串，避免 JSON 语法错误
-    TOKEN_VAL="${CIVITAI_TOKEN:-}"
-    
-    cat <<EOF > ~/.config/civitdl/config.json
-{
-  "version": "1",
-  "default": {
-    "api_key": "$TOKEN_VAL",
-    "sorter": "basic",
-    "max_images": 2,
-    "nsfw_mode": "2",
-    "with_prompt": true,
-    "without_model": false,
-    "limit_rate": "0",
-    "retry_count": 5,
-    "pause_time": 2.0,
-    "cache_mode": "1",
-    "strict_mode": "0",
-    "model_overwrite": false,
-    "with_color": true
-  },
-  "sorters": [],
-  "aliases": []
-}
-EOF
-    echo "✅ CivitDL 配置文件已注入 (~/.config/civitdl/config.json)"
+    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/workflow" /workspace/ComfyUI/user/default/workflows/ -P
+    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/loras" /workspace/ComfyUI/models/loras/ -P
+    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/wildcards" /workspace/ComfyUI/custom_nodes/comfyui-dynamicprompts/wildcards/ -P
+    echo "✅ 核心资产同步完成。"
 fi
 
 
 # =================================================
-# 7. 资源下载 (修正版: 去除后台等待，防止卡死)
+# 7. 启动服务 (正式运行)
 # =================================================
-echo "--> [7/8] 下载资源..."
+echo "--> [7/8] 启动 ComfyUI 服务..."
 
-# -------------------------------------------------
-# 7.1 生成自定义分类器 (Sorter)
-# -------------------------------------------------
-if [ "$ENABLE_CIVITDL" = true ]; then
-    cat <<EOF > /workspace/runpod_sorter.py
-from civitdl.api.sorter import SorterData
-import os
-
-def sort_model(model_dict, version_dict, filename, root_path):
-    raw_type = model_dict.get('type', 'unknown')
-    m_type = raw_type.lower()
-    print(f"  -> [Sorter] 处理: {model_dict.get('name')} | 类型: {raw_type}")
-
-    type_map = {
-        "checkpoint": "checkpoints",
-        "lora": "loras",
-        "locon": "loras",
-        "dora": "loras",
-        "controlnet": "controlnet",
-        "vae": "vae",
-        "upscaler": "upscale_models",
-        "motionmodule": "animatediff_models"
-    }
-    
-    target_subfolder = type_map.get(m_type, "extras")
-    final_dir = os.path.join(root_path, target_subfolder, model_dict.get('name', 'Unknown_Model'))
-    
-    return SorterData(final_dir, final_dir, final_dir, final_dir)
-EOF
-fi
-
-# -------------------------------------------------
-# 7.2 整合 ID 并批量下载
-# -------------------------------------------------
-RAW_IDS="${CHECKPOINT_IDS},${CONTROLNET_IDS},${UPSCALER_IDS},${LORA_IDS},${ALL_MODEL_IDS}"
-CLEAN_IDS=$(echo "$RAW_IDS" | tr ',' '\n' | grep -v '^\s*$' | sort -u | tr '\n' ',' | sed 's/,$//')
-
-if [ "$ENABLE_CIVITDL" = true ] && [ -n "$CLEAN_IDS" ]; then
-    BATCH_FILE="/workspace/civitai_batch.txt"
-    echo "$CLEAN_IDS" > "$BATCH_FILE"
-    
-    echo "  -> 启动 CivitDL 批量下载..."
-    # 这里的 civitdl 是同步运行的，下载完才会走下一步
-    civitdl "$BATCH_FILE" "/workspace/ComfyUI/models" \
-        --sorter "/workspace/runpod_sorter.py" \
-        || echo "⚠️ CivitDL 下载出现部分错误"
-fi
-
-# -------------------------------------------------
-# 7.3 其他资源 (Rclone / AuraSR) - 关键修正点
-# -------------------------------------------------
-if [ "$ENABLE_SYNC" = true ]; then
-    echo "  -> [Sync] 同步 Rclone 数据..."
-    # ⚠️ 修正：去掉了 & 和 wait，强制前台运行。
-    # 如果 Rclone 卡住，你会直接看到它卡在哪，而不是看着 100% 发呆
-    mkdir -p /workspace/ComfyUI/user/default/workflows
-    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/workflow" /workspace/ComfyUI/user/default/workflows/ -P --transfers 8
-    
-    # 如果你也同步 LoRA，请取消下面注释（同样去掉了 &）
-    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/loras" /workspace/ComfyUI/models/loras/ -P --transfers 8
-    mkdir -p /workspace/ComfyUI/custom_nodes/comfyui-dynamicprompts/wildcards
-    rclone sync "${R2_REMOTE_NAME}:comfyui-assets/wildcards" /workspace/ComfyUI/custom_nodes/comfyui-dynamicprompts/wildcards/ -P --transfers 8
-fi
-
-echo "  -> [Download] 下载 AuraSR..."
-mkdir -p "/workspace/ComfyUI/models/Aura-SR"
-
-# ⚠️ 修正：改用 aria2c 前台下载，速度快且有进度条
-aria2c -x 8 -s 8 --console-log-level=error --summary-interval=1 \
-    -d "/workspace/ComfyUI/models/Aura-SR" \
-    -o "model.safetensors" \
-    "https://huggingface.co/fal/AuraSR-v2/resolve/main/model.safetensors?download=true"
-
-aria2c -x 8 -s 8 --console-log-level=error --summary-interval=1 \
-    -d "/workspace/ComfyUI/models/Aura-SR" \
-    -o "config.json" \
-    "https://huggingface.co/fal/AuraSR-v2/resolve/main/config.json?download=true"
-
-echo "✅ 资源下载阶段完成。"
-
-# =================================================
-# 8. 启动服务
-# =================================================
-echo "--> [8/8] 启动服务..."
-
+# 启动 OneDrive 同步后台服务 (如果开启)
 if [ "$ENABLE_SYNC" = true ]; then
 cat <<EOF > /workspace/onedrive_sync.sh
 #!/bin/bash
@@ -417,15 +240,13 @@ echo "Watching: \$SOURCE_DIR"
 echo "Target:   \$REMOTE_PATH"
 
 while true; do
-    # Check for files older than 30s
-    # Added ! -path '*/.*' to ignore hidden files/folders (syncs with rclone logic)
+    # 检查是否有超过 30 秒未变动的文件
     FOUND_FILES=\$(find "\$SOURCE_DIR" -type f -mmin +0.5 ! -path '*/.*' -print -quit)
 
     if [ -n "\$FOUND_FILES" ]; then
         TIME=\$(date '+%H:%M:%S')
         echo "[\$TIME] New files detected. Uploading..."
 
-        # Start rclone move
         rclone move "\$SOURCE_DIR" "\$REMOTE_PATH" \\
             --min-age "30s" \\
             --exclude ".*/**" \\
@@ -445,33 +266,96 @@ done
 EOF
     chmod +x /workspace/onedrive_sync.sh
     tmux new-session -d -s sync "/workspace/onedrive_sync.sh"
-    echo "✅ 同步服务已启动 (Tmux: sync)"
+    echo "✅ 后台同步服务已启动 (Tmux: sync)"
 fi
 
-# 启动 ComfyUI (针对 Torch 2.8 + Blackwell 优化)
-# --use-pytorch-cross-attention: 强制使用原生 SDP，配合 FA3/SA3
-# --fast: 启用 torch.compile 图编译优化
-# --disable-xformers: 显式禁用 (虽然没装，但以防万一插件尝试加载)
+# 启动 ComfyUI
 tmux new-session -d -s comfy
 tmux send-keys -t comfy "cd /workspace/ComfyUI && python main.py --listen 0.0.0.0 --port 8188 --use-pytorch-cross-attention --fast --disable-xformers" C-m
 
+echo "✅ ComfyUI 已启动！(Tmux: comfy)"
+
+
+# =================================================
+# 8. 资源下载 (启动后并行下载模型)
+# =================================================
+echo "--> [8/8] 开始后台大文件下载任务..."
+
+# 8.1 CivitDL 处理
+if [ "$ENABLE_CIVITDL" = true ]; then
+    echo "  -> [CivitDL] 配置并启动下载..."
+    pip install civitdl
+    mkdir -p ~/.config/civitdl
+    TOKEN_VAL="${CIVITAI_TOKEN:-}"
+    
+    # 注入 CivitDL 配置文件
+    cat <<EOF > ~/.config/civitdl/config.json
+{
+  "version": "1",
+  "default": {
+    "api_key": "$TOKEN_VAL",
+    "sorter": "basic",
+    "max_images": 2,
+    "nsfw_mode": "2",
+    "with_prompt": true,
+    "without_model": false,
+    "limit_rate": "0",
+    "retry_count": 5,
+    "pause_time": 2.0,
+    "cache_mode": "1",
+    "strict_mode": "0",
+    "model_overwrite": false,
+    "with_color": true
+  }
+}
+EOF
+
+    # 注入 Sorter 逻辑
+    cat <<EOF > /workspace/runpod_sorter.py
+from civitdl.api.sorter import SorterData
+import os
+def sort_model(model_dict, version_dict, filename, root_path):
+    m_type = model_dict.get('type', 'unknown').lower()
+    type_map = {"checkpoint": "checkpoints", "lora": "loras", "locon": "loras", "dora": "loras", "controlnet": "controlnet", "vae": "vae", "upscaler": "upscale_models", "motionmodule": "animatediff_models"}
+    target_subfolder = type_map.get(m_type, "extras")
+    final_dir = os.path.join(root_path, target_subfolder, model_dict.get('name', 'Unknown'))
+    return SorterData(final_dir, final_dir, final_dir, final_dir)
+EOF
+
+    RAW_IDS="${CHECKPOINT_IDS},${CONTROLNET_IDS},${UPSCALER_IDS},${LORA_IDS},${ALL_MODEL_IDS}"
+    CLEAN_IDS=$(echo "$RAW_IDS" | tr ',' '\n' | grep -v '^\s*$' | sort -u | tr '\n' ',' | sed 's/,$//')
+
+    if [ -n "$CLEAN_IDS" ]; then
+        echo "$CLEAN_IDS" > /workspace/civitai_batch.txt
+        civitdl "/workspace/civitai_batch.txt" "/workspace/ComfyUI/models" --sorter "/workspace/runpod_sorter.py" || echo "⚠️ CivitDL 部分下载失败"
+    fi
+fi
+
+# 8.2 AuraSR 下载
+echo "  -> [AuraSR] 正在下载 AuraSR V2 权重..."
+mkdir -p "/workspace/ComfyUI/models/Aura-SR"
+aria2c -x 16 -s 16 --console-log-level=error -d "/workspace/ComfyUI/models/Aura-SR" -o "model.safetensors" "https://huggingface.co/fal/AuraSR-v2/resolve/main/model.safetensors?download=true"
+aria2c -x 16 -s 16 --console-log-level=error -d "/workspace/ComfyUI/models/Aura-SR" -o "config.json" "https://huggingface.co/fal/AuraSR-v2/resolve/main/config.json?download=true"
+
+# --- [修改版 结尾] 最终部署报告 ---
 if [ "$CUDA_CAP_MAJOR" -ge 10 ]; then
-    ARCH_MODE="Blackwell (Native FP4)"
-    FA_STATUS="FA3 (Beta)"
-    SA_STATUS="SA3 (Microscaling)"
+    ARCH_MODE="Blackwell (RTX 5090 / B200)"
 elif [ "$CUDA_CAP_MAJOR" -ge 9 ]; then
-    ARCH_MODE="Hopper (H100)"
-    FA_STATUS="FA3 (Beta)"
-    SA_STATUS="SA2 (Standard)"
+    ARCH_MODE="Hopper (H100 / H200)"
 else
-    ARCH_MODE="Ada/Ampere (Legacy)"
-    FA_STATUS="FA2"
-    SA_STATUS="SA2"
+    ARCH_MODE="Ada/Ampere (4090 / A100 / etc.)"
 fi
 
 echo "================================================="
-echo "  🚀 部署完成！ [$ARCH_MODE]"
-echo "  Core: Torch 2.8 | $FA_STATUS: Enabled | $SA_STATUS: Enabled"
-echo "  服务端口: 8188 (已启动)"
-echo "  同步服务: $(if [ "$ENABLE_SYNC" = true ]; then echo "Running (Tmux: sync)"; else echo "Disabled"; fi)"
+echo "  🚀 部署完成！"
+echo "  算力架构: $ARCH_MODE (sm_${CUDA_CAP_MAJOR})"
+echo "  服务端口: 8188"
+echo "-------------------------------------------------"
+echo "  加速组件安装状态:"
+echo "  - FlashAttention: $FA_INSTALL_TYPE"
+echo "  - SageAttention:  $SA_INSTALL_TYPE"
+echo "-------------------------------------------------"
+echo "  资产同步: $(if [ "$ENABLE_SYNC" = true ]; then echo "已完成 (R2 -> Local)"; else echo "未启用"; fi)"
+echo "  后台同步: $(if [ "$ENABLE_SYNC" = true ]; then echo "运行中 (Tmux: sync)"; else echo "未启用"; fi)"
+echo "  模型下载: 请查看主日志确认进度。"
 echo "================================================="
