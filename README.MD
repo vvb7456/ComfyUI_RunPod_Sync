@@ -2,7 +2,7 @@
 
 # 艾萝工坊 RunPod ComfyUI 自动化部署脚本 
 
-专为 RunPod 优化的 ComfyUI 一键启动脚本。支持 **Blackwell (RTX 5090/B200)** 及 **Hopper (H100)** 架构，
+专为 RunPod/Vast.ai 优化的 ComfyUI 一键启动脚本。支持 **Blackwell (RTX 5090/B200)** 及 **Hopper (H100)** 架构，
 
 ## 核心特性 (v4.5)
 
