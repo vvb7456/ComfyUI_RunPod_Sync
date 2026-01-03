@@ -25,6 +25,8 @@ echo "================================================="
 # =================================================
 echo "--> [1/8] 初始化配置..."
 
+ln -s /workspace /root/workspace
+
 # 1.1 Rclone (同步功能)
 if [ -n "$RCLONE_CONF_BASE64" ] && [ -n "$R2_REMOTE_NAME" ]; then
     ENABLE_SYNC=true
@@ -282,13 +284,15 @@ echo "✅ ComfyUI 已启动！(Tmux: comfy)"
 echo "--> [8/8] 开始后台大文件下载任务..."
 
 # 8.1 CivitDL 处理
+
 if [ "$ENABLE_CIVITDL" = true ]; then
-    echo "  -> [CivitDL] 配置并启动下载..."
+    echo "  -> [CivitDL] 正在安装并配置工具..."
     pip install civitdl
+    
+    # 1. 注入 API Key 配置文件 (完全还原 JSON 字段)
     mkdir -p ~/.config/civitdl
     TOKEN_VAL="${CIVITAI_TOKEN:-}"
     
-    # 注入 CivitDL 配置文件
     cat <<EOF > ~/.config/civitdl/config.json
 {
   "version": "1",
@@ -306,28 +310,50 @@ if [ "$ENABLE_CIVITDL" = true ]; then
     "strict_mode": "0",
     "model_overwrite": false,
     "with_color": true
-  }
+  },
+  "sorters": [],
+  "aliases": []
 }
 EOF
+    echo "✅ CivitDL 配置文件已注入。"
 
-    # 注入 Sorter 逻辑
     cat <<EOF > /workspace/runpod_sorter.py
 from civitdl.api.sorter import SorterData
 import os
+
 def sort_model(model_dict, version_dict, filename, root_path):
-    m_type = model_dict.get('type', 'unknown').lower()
-    type_map = {"checkpoint": "checkpoints", "lora": "loras", "locon": "loras", "dora": "loras", "controlnet": "controlnet", "vae": "vae", "upscaler": "upscale_models", "motionmodule": "animatediff_models"}
+    raw_type = model_dict.get('type', 'unknown')
+    m_type = raw_type.lower()
+    print(f"  -> [Sorter] 处理: {model_dict.get('name')} | 类型: {raw_type}")
+
+    type_map = {
+        "checkpoint": "checkpoints",
+        "lora": "loras",
+        "locon": "loras",
+        "dora": "loras",
+        "controlnet": "controlnet",
+        "vae": "vae",
+        "upscaler": "upscale_models",
+        "motionmodule": "animatediff_models"
+    }
+    
     target_subfolder = type_map.get(m_type, "extras")
-    final_dir = os.path.join(root_path, target_subfolder, model_dict.get('name', 'Unknown'))
+    final_dir = os.path.join(root_path, target_subfolder, model_dict.get('name', 'Unknown_Model'))
+    
     return SorterData(final_dir, final_dir, final_dir, final_dir)
 EOF
 
+    # 3. 整合 ID 并启动下载
     RAW_IDS="${CHECKPOINT_IDS},${CONTROLNET_IDS},${UPSCALER_IDS},${LORA_IDS},${ALL_MODEL_IDS}"
     CLEAN_IDS=$(echo "$RAW_IDS" | tr ',' '\n' | grep -v '^\s*$' | sort -u | tr '\n' ',' | sed 's/,$//')
 
     if [ -n "$CLEAN_IDS" ]; then
-        echo "$CLEAN_IDS" > /workspace/civitai_batch.txt
-        civitdl "/workspace/civitai_batch.txt" "/workspace/ComfyUI/models" --sorter "/workspace/runpod_sorter.py" || echo "⚠️ CivitDL 部分下载失败"
+        BATCH_FILE="/workspace/civitai_batch.txt"
+        echo "$CLEAN_IDS" > "$BATCH_FILE"
+        echo "  -> 启动 CivitDL 批量下载..."
+        civitdl "\$BATCH_FILE" "/workspace/ComfyUI/models" \
+            --sorter "/workspace/runpod_sorter.py" \
+            || echo "⚠️ CivitDL 下载出现部分错误"
     fi
 fi
 
