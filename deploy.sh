@@ -351,7 +351,7 @@ EOF
         BATCH_FILE="/workspace/civitai_batch.txt"
         echo "$CLEAN_IDS" > "$BATCH_FILE"
         echo "  -> 启动 CivitDL 批量下载..."
-        civitdl "\$BATCH_FILE" "/workspace/ComfyUI/models" \
+        civitdl "$BATCH_FILE" "/workspace/ComfyUI/models" \
             --sorter "/workspace/runpod_sorter.py" \
             || echo "⚠️ CivitDL 下载出现部分错误"
     fi
