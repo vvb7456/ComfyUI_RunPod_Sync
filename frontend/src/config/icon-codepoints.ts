@@ -10,6 +10,7 @@ export const ICON_CODEPOINTS: Record<string, string> = {
   'assignment': '\ue85d',
   'auto_awesome': '\ue65f',
   'auto_fix_high': '\ue663',
+  'block': '\uf08c',
   'bolt': '\uea0b',
   'book_2': '\uf53e',
   'border_style': '\ue231',

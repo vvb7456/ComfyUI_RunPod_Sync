@@ -700,7 +700,7 @@ async function uploadRcloneFile(e: Event) {
             <BaseButton size="sm" square :disabled="ruleIsRunning || !rule.enabled" :title="t('sync.rule.run')" @click="runRule(rule)"><MsIcon name="play_arrow" /></BaseButton>
             <BaseButton size="sm" square :title="t('sync.rule.edit')" @click="openEditRule(rule)"><MsIcon name="edit" /></BaseButton>
             <BaseButton size="sm" square :title="rule.enabled ? t('sync.rule.disable') : t('sync.rule.enable')" @click="toggleRule(rule)">
-              <MsIcon :name="rule.enabled ? 'pause' : 'play_arrow'" />
+              <MsIcon :name="rule.enabled ? 'block' : 'check_circle'" />
             </BaseButton>
             <BaseButton variant="danger" size="sm" square :title="t('sync.rule.delete')" @click="deleteRule(rule)"><MsIcon name="delete" /></BaseButton>
           </div>
