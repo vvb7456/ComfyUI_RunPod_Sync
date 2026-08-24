@@ -30,12 +30,12 @@ import FieldControlRow from '@/components/form/FieldControlRow.vue'
 import SectionHeader from '@/components/ui/SectionHeader.vue'
 import { remoteBrand } from '@/config/remote-logos'
 import { fmtBytes } from '@/utils/format'
-import { apiErrorText } from '@/utils/apiError'
+import { apiErrorText, apiMessageText } from '@/utils/apiError'
 import type {
   StorageInfo, SyncTemplate, RemoteField, RemoteTypeDef, Remote,
   SyncRule, SyncSettings,
   SyncStatusResponse, RemotesResponse, StorageResponse,
-  RemoteTypesResponse, RulesSaveResponse,
+  RemoteTypesResponse, RulesSaveResponse, RemoteDeleteResponse,
   RcloneConfigResponse, ApiOkResponse,
 } from '@/types/sync'
 
@@ -380,10 +380,23 @@ async function submitAddRemote() {
 }
 
 async function deleteRemote(name: string) {
-  if (!await confirm({ message: t('sync.remote.confirm_delete', { name }), variant: 'danger' })) return
-  const d = await post<ApiOkResponse>('/api/sync/remote/delete', { name })
+  // 删除 remote 会级联清理引用它的规则 —— 先在本地统计数量并写进 confirm 文案,
+  // 让用户知情同意, 而不是删完才在 toast 里告知"顺手删了 N 条规则"。
+  // 本地 rules 可能与服务端有偏差 (多标签页), 实际清理数以服务端返回为准。
+  const affectedRules = rules.value.filter(r => r.remote === name)
+  const msg = affectedRules.length > 0
+    ? t('sync.remote.confirm_delete_with_rules', { name, count: affectedRules.length })
+    : t('sync.remote.confirm_delete', { name })
+  if (!await confirm({ message: msg, variant: 'danger' })) return
+  const d = await post<RemoteDeleteResponse>('/api/sync/remote/delete', { name })
   if (d?.ok) {
-    toast(t('sync.remote.deleted'), 'success')
+    const removed = d.rules_removed ?? 0
+    if (removed > 0) {
+      toast(t('sync.remote.deleted_with_rules', { name, count: removed }), 'success')
+      await loadSyncStatus()
+    } else {
+      toast(apiMessageText(d, t('sync.remote.deleted')), 'success')
+    }
     await loadRemotes()
     delete storageData.value[name]
   } else if (d) {

@@ -33,7 +33,9 @@
     "create_failed": "Create failed",
     "connecting": "Creating…",
     "confirm_delete": "Delete remote \"{name}\"?",
+    "confirm_delete_with_rules": "Delete remote \"{name}\"?\n{count} rule(s) reference this storage and will also be deleted.",
     "deleted": "Deleted",
+    "deleted_with_rules": "\"{name}\" deleted, {count} rule(s) referencing it cleaned up",
     "delete_failed": "Delete failed",
     "no_capacity_info": "This storage type doesn't support capacity queries",
     "load_storage": "Refresh Capacity"
@@ -214,6 +216,7 @@
     "client_not_found": "Client not found",
     "config_empty": "Config content cannot be empty",
     "config_no_section": "Malformed config: at least one [remote] section is required",
+    "config_dup_section": "Duplicate section(s): {names}. Merge or rename them first.",
     "conn_test_failed": "Connection test failed: {detail}",
     "conn_test_failed_plain": "Connection test failed",
     "conn_test_timeout": "Connection test timed out, please check the settings",

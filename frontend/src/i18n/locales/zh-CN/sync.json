@@ -33,7 +33,9 @@
     "create_failed": "创建失败",
     "connecting": "创建中…",
     "confirm_delete": "确定要删除远程存储「{name}」吗？",
+    "confirm_delete_with_rules": "确定要删除远程存储「{name}」吗？\n有 {count} 条规则引用该存储，将一并删除。",
     "deleted": "已删除",
+    "deleted_with_rules": "「{name}」已删除，并清理了 {count} 条引用该存储的规则",
     "delete_failed": "删除失败",
     "no_capacity_info": "此存储类型不支持容量查询",
     "load_storage": "刷新容量"
@@ -214,6 +216,7 @@
     "client_not_found": "客户端不存在",
     "config_empty": "配置内容不能为空",
     "config_no_section": "配置格式错误：至少需要一个 [remote] 段",
+    "config_dup_section": "配置存在同名段：{names}。请合并或重命名后重试。",
     "conn_test_failed": "连接测试失败：{detail}",
     "conn_test_failed_plain": "连接测试失败",
     "conn_test_timeout": "连接测试超时，请检查配置",

@@ -145,6 +145,12 @@ export interface RulesSaveResponse extends ApiOkResponse {
   rules?: SyncRule[]
 }
 
+/** /api/sync/remote/delete 响应: 删除 remote 时若清理了引用该 remote 的规则, 会带 rules_removed。 */
+export interface RemoteDeleteResponse extends ApiOkResponse {
+  /** 被一并清理的引用该 remote 的规则数 (0 表示没有规则引用它) */
+  rules_removed?: number
+}
+
 export interface BrowseResponse {
   ok?: boolean
   dirs?: string[]

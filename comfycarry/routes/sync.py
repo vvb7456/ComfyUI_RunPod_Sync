@@ -240,7 +240,24 @@ def api_sync_remote_delete():
             return _err("delete_failed", 500, detail=r.stderr.strip())
     except Exception as e:
         return _err("delete_failed", 500, detail=str(e))
-    return _ok("remote_deleted", params={"name": name})
+
+    # 删除 remote 后清理引用它的规则 —— 否则规则列表里会残留指向已删除
+    # remote 的条目, UI 仍显示但再次执行时 rclone 会因 remote 不存在而失败。
+    rules = _load_sync_rules()
+    remaining = [r for r in rules if r.get("remote") != name]
+    rules_removed = len(rules) - len(remaining)
+    if rules_removed:
+        _save_sync_rules(remaining)
+        # 与 rules/save 一致: 剩下的 watch 规则若已全部清空, 停掉 worker,
+        # 避免空转; 否则保留运行状态。
+        watch_rules = [r for r in remaining
+                       if r.get("trigger") == "watch" and r.get("enabled", True)]
+        if not watch_rules:
+            stop_sync_worker()
+
+    return _ok("remote_deleted",
+               params={"name": name},
+               rules_removed=rules_removed)
 
 
 @bp.route("/api/sync/remote/browse", methods=["POST"])
@@ -534,6 +551,20 @@ def api_save_rclone_config():
     sections = re.findall(r'^\[.+\]', config_text, re.MULTILINE)
     if not sections:
         return _err("config_no_section")
+    # rclone.conf 是 INI 格式, rclone 的解析器对同名 section 会把键合并到一处,
+    # 而我们的 _parse_rclone_conf 会得到两个同名条目 —— 这会让 /remotes 列表
+    # 出现重复卡片、/storage 后者覆盖前者、按 name 删除又删不干净。在源头
+    # 拒绝, 比让 UI 陷入无法自洽的状态要简单。
+    seen: set[str] = set()
+    dup: set[str] = set()
+    for sec in sections:
+        name = sec.strip("[]")
+        if name in seen:
+            dup.add(name)
+        seen.add(name)
+    if dup:
+        return _err("config_dup_section", 400,
+                    names=", ".join(sorted(dup)))
     if RCLONE_CONF.exists():
         RCLONE_CONF.with_suffix('.conf.bak').write_text(
             RCLONE_CONF.read_text(encoding="utf-8"), encoding="utf-8")
