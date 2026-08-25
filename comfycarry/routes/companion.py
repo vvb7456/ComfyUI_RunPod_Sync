@@ -1,10 +1,9 @@
 """
 ComfyCarry — Companion 客户端面板后端 (纯 Python)
 
-藍图前缀 /api/companion, JSON 响应 + HTTP 状态码。
+蓝图前缀 /api/companion, JSON 响应 + HTTP 状态码。
 
 错误文案分两套, 按消费方划分:
-  - 面板前端调的 (/clients 的 DELETE): key + params, 前端翻译;
   - 桌面客户端调的 (connect / heartbeat / jobs*): 原文 —— 客户端没有 locale
     表, 而且它只看状态码, 回 key 只会让排障时看到一串没人翻译的标识符。
 契约: docs/COMPANION_DESKTOP_APP_SPEC.md §2.2–§2.5。
@@ -14,11 +13,14 @@ ComfyCarry — Companion 客户端面板后端 (纯 Python)
   ② 可观测 (谁连着、在拉什么、结果进统一 Activity)。
 拉取规则归客户端所有并本地持久化, 面板不存规则、不做规则 CRUD。
 规则信息由客户端经 heartbeat 上报「只读摘要」(rule_summaries), 面板仅展示。
+
+客户端连接记录只存内存 (见 _clients), 不落盘、不保留离线客户端:
+  - heartbeat 直接覆盖该 client_id 的内存条目, last_seen=now;
+  - GET /clients 只返回 last_seen 在 _ONLINE_TTL 内的客户端;
+  - 面板重启后内存清空, 客户端下次心跳即重新出现, 无需"忘记"按钮。
 """
 
-import json
 import logging
-import os
 import time
 import threading
 import uuid
@@ -28,7 +30,6 @@ from flask import Blueprint, jsonify, request
 from ..config import (
     API_KEY,
     COMFYUI_DIR,
-    COMPANION_CLIENTS_FILE,
     DASHBOARD_PASSWORD,
     INSTANCE_LABEL,
 )
@@ -38,36 +39,15 @@ bp = Blueprint("companion", __name__)
 log = logging.getLogger("comfycarry.companion")
 
 
-def _err(key: str, status: int = 400, /, **params):
-    """面板前端调的端点用: 错误按 `sync.err.<key>` 翻译 (companion 复用 sync 命名空间)。"""
-    return jsonify({"error_key": f"sync.err.{key}", "error_params": params}), status
-
-
-# ── 客户端状态文件读写 ───────────────────────────────────────
+# ── 客户端在线状态 (纯内存, 不持久化) ─────────────────────────
 _clients_lock = threading.Lock()
+# client_id -> info (与 heartbeat body 同构 + last_seen)。仅在线条目保留,
+# 超过 _ONLINE_TTL 未再上报的条目在 GET /clients 读取时被过滤 (不主动删除,
+# 下次该 client_id 心跳上报时直接覆盖, 避免竞态下丢条目)。
+_clients: dict[str, dict] = {}
 
 # last_seen 在此秒数内视为在线
 _ONLINE_TTL = 45
-
-
-def _load_clients():
-    """加载已知客户端状态 (dict: client_id -> info)"""
-    if COMPANION_CLIENTS_FILE.exists():
-        try:
-            return json.loads(COMPANION_CLIENTS_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return {}
-
-
-def _save_clients(data):
-    """保存客户端状态 (临时文件 + 原子替换, 防写一半被中断损坏 JSON)。"""
-    COMPANION_CLIENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = COMPANION_CLIENTS_FILE.with_suffix(COMPANION_CLIENTS_FILE.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
-    os.replace(tmp, COMPANION_CLIENTS_FILE)
 
 
 def _infer_dav_url():
@@ -127,9 +107,12 @@ def api_companion_connect():
 def api_companion_heartbeat():
     """客户端心跳上报。
 
-    body: {client_id, hostname, app_version, status, active_rule_id, progress, rule_summaries}
+    body: {client_id, hostname, app_version, status, rule_summaries}
     rule_summaries: list (客户端上报什么就存什么, 不校验内部结构; 非 list 则存 [])
     记录 last_seen=now, 供 GET /clients 在线判定。
+
+    active_rule_id / progress 曾由客户端上报, 但面板不展示 (前者从未使用, 后者
+    的进度条已移除), 现从协议中剔除 —— 客户端本地保留即可, 不必再上报。
     """
     data = request.get_json(silent=True) or {}
     client_id = data.get("client_id", "")
@@ -146,42 +129,39 @@ def api_companion_heartbeat():
         "hostname": data.get("hostname", ""),
         "app_version": data.get("app_version", ""),
         "status": data.get("status", "idle"),
-        "active_rule_id": data.get("active_rule_id", ""),
-        "progress": data.get("progress", {}),
         "rule_summaries": rule_summaries,
         "last_seen": now,
     }
     with _clients_lock:
-        clients = _load_clients()
-        clients[client_id] = info
-        _save_clients(clients)
+        _clients[client_id] = info
     return jsonify({"ok": True, "online": True, "last_seen": now})
 
 
 @bp.route("/api/companion/clients", methods=["GET"])
 def api_companion_clients():
-    """返回已知客户端 + 在线判定 + serve 状态 + dav_url。
+    """返回在线客户端 + serve 状态 + dav_url。
 
     返回: {clients:[...], serve:{...}, dav_url:"..."}
     每个 client 项带 rule_summaries (缺省 [])。
+    仅返回 last_seen 在 _ONLINE_TTL 内的客户端; 离线条目不展示也不持久化,
+    下次该 client_id 心跳上报时自动重新出现。
     """
     now = time.time()
     with _clients_lock:
-        clients = _load_clients()
+        snapshot = list(_clients.values())
     result = []
-    for cid, info in clients.items():
+    for info in snapshot:
         last_seen = info.get("last_seen", 0)
-        online = (now - last_seen) <= _ONLINE_TTL
+        if (now - last_seen) > _ONLINE_TTL:
+            continue
         result.append({
-            "client_id": cid,
+            "client_id": info.get("client_id", ""),
             "hostname": info.get("hostname", ""),
             "app_version": info.get("app_version", ""),
             "status": info.get("status", "idle"),
-            "active_rule_id": info.get("active_rule_id", ""),
-            "progress": info.get("progress", {}),
             "rule_summaries": info.get("rule_summaries", []),
             "last_seen": last_seen,
-            "online": online,
+            "online": True,
         })
     result.sort(key=lambda c: c.get("last_seen", 0), reverse=True)
     return jsonify({
@@ -189,21 +169,6 @@ def api_companion_clients():
         "serve": companion_serve.status(),
         "dav_url": _infer_dav_url(),
     })
-
-
-@bp.route("/api/companion/clients/<client_id>", methods=["DELETE"])
-def api_companion_client_forget(client_id):
-    """忘记客户端: 从 clients 文件删除该 client_id 的记录。
-
-    这是本蓝图里唯一由面板前端调用的写端点, 所以错误走 key + params (见模块 docstring)。
-    """
-    with _clients_lock:
-        clients = _load_clients()
-        if client_id not in clients:
-            return _err("client_not_found", 404)
-        del clients[client_id]
-        _save_clients(clients)
-    return jsonify({"ok": True})
 
 
 # ═══════════════════════════════════════════════════════════════

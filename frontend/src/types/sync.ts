@@ -53,12 +53,6 @@ export interface SyncRule {
 
 // ── Companion (桌面客户端) ──────────────────────────────────
 
-export interface CompanionProgress {
-  file?: string
-  pct?: number
-  speed?: number
-}
-
 /** 客户端上报的只读规则摘要 */
 export interface CompanionRuleSummary {
   name?: string
@@ -84,8 +78,6 @@ export interface CompanionClient {
   app_version: string
   /** idle | syncing | paused | error */
   status: string
-  active_rule_id: string
-  progress?: CompanionProgress
   rule_summaries?: CompanionRuleSummary[]
   last_seen: number
   online: boolean

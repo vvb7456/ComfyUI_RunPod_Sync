@@ -149,7 +149,7 @@
   },
   "companion": {
     "serve_title": "Transfer service",
-    "clients_title": "Clients",
+    "clients_title": "Connected Clients",
     "description": "Pull outputs straight to this PC, in parallel with cloud sync.",
     "serve_state": "WebDAV",
     "serve_running": "Running",
@@ -157,8 +157,6 @@
     "serve_root_label": "Serving",
     "dav_url": "Address",
     "online_short": "online",
-    "client_online": "Online",
-    "client_offline": "Offline",
     "status_idle": "Idle",
     "status_syncing": "Pulling",
     "status_pulling": "Pulling",
@@ -172,11 +170,7 @@
     "download_client": "Download Windows Client",
     "download_client_short": "Download Client",
     "client_rules": "Pull rules",
-    "no_rules": "No rules",
-    "forget": "Forget",
-    "confirm_forget": "Forget this client?",
-    "forgotten": "Client removed",
-    "forget_failed": "Couldn't remove client"
+    "no_rules": "No rules"
   },
   "activity": {
     "current_job": "Current Sync",
@@ -213,7 +207,6 @@
     "browse_rclone_failed": "Listing failed: {detail}",
     "browse_rclone_failed_plain": "Listing failed",
     "browse_timeout": "Listing timed out (30s)",
-    "client_not_found": "Client not found",
     "config_empty": "Config content cannot be empty",
     "config_no_section": "Malformed config: at least one [remote] section is required",
     "config_dup_section": "Duplicate section(s): {names}. Merge or rename them first.",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import type { Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseModal from './BaseModal.vue'
 import BaseButton from './BaseButton.vue'
@@ -17,6 +18,9 @@ const props = defineProps<{
   altVariant?: 'default' | 'primary' | 'danger' | 'success'
   loading?: boolean
   showDontAsk?: boolean
+  checkboxLabel?: string
+  checkboxInternal?: boolean
+  checkboxRef?: Ref<boolean>
 }>()
 
 const emit = defineEmits<{
@@ -29,11 +33,25 @@ const emit = defineEmits<{
 const { t } = useI18n({ useScope: 'global' })
 
 const dontAsk = ref(false)
+const localCheckbox = ref(false)
 const confirmLabel = computed(() => props.confirmText || t('common.btn.confirm'))
 
-// Reset checkbox when dialog opens
+const checkboxChecked = computed<boolean>({
+  get: () => props.checkboxRef ? props.checkboxRef.value : localCheckbox.value,
+  set: (v) => {
+    if (props.checkboxRef) props.checkboxRef.value = v
+    else localCheckbox.value = v
+  },
+})
+
+const hasFooterLeft = computed(() => props.showDontAsk || !!props.checkboxLabel)
+
+// Reset checkboxes when dialog opens
 watch(() => props.modelValue, (open) => {
-  if (open) dontAsk.value = false
+  if (open) {
+    dontAsk.value = false
+    if (!props.checkboxRef) localCheckbox.value = props.checkboxInternal ?? false
+  }
 })
 const cancelLabel = computed(() => props.cancelText || t('common.btn.cancel'))
 const confirmVariant = computed(() => props.variant === 'danger' ? 'danger' : 'primary')
@@ -53,13 +71,19 @@ function doAlt() {
 </script>
 
 <template>
-  <BaseModal :model-value="modelValue" @update:model-value="close" :title="title" size="sm" :close-on-overlay="false" :footer-align="showDontAsk ? 'between' : 'end'" :z-index="1100">
+  <BaseModal :model-value="modelValue" @update:model-value="close" :title="title" size="sm" :close-on-overlay="false" :footer-align="hasFooterLeft ? 'between' : 'end'" :z-index="1100">
     <p class="confirm-message">{{ message }}</p>
     <template #footer>
-      <label v-if="showDontAsk" class="confirm-dont-ask">
-        <input v-model="dontAsk" type="checkbox">
-        <span>{{ t('common.btn.dont_ask') }}</span>
-      </label>
+      <div v-if="hasFooterLeft" class="confirm-footer-left">
+        <label v-if="checkboxLabel" class="confirm-dont-ask">
+          <input v-model="checkboxChecked" type="checkbox">
+          <span>{{ checkboxLabel }}</span>
+        </label>
+        <label v-if="showDontAsk" class="confirm-dont-ask">
+          <input v-model="dontAsk" type="checkbox">
+          <span>{{ t('common.btn.dont_ask') }}</span>
+        </label>
+      </div>
       <div class="confirm-buttons">
         <BaseButton :disabled="loading" @click="close">{{ cancelLabel }}</BaseButton>
         <BaseButton v-if="altText" :variant="altVariant ?? 'default'" :disabled="loading" @click="doAlt">{{ altText }}</BaseButton>
@@ -101,6 +125,12 @@ function doAlt() {
 
 .confirm-dont-ask input {
   accent-color: var(--ac);
+}
+
+.confirm-footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .confirm-buttons {

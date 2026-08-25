@@ -217,21 +217,9 @@ const {
   davUrl: companionDavUrl,
   loading: companionLoading,
   fetchClients: fetchCompanionClients,
-  forgetClient: forgetCompanionClient,
   startPolling: startCompanionPolling,
   stopPolling: stopCompanionPolling,
 } = useCompanionClients({ pollInterval: 20_000 })
-
-async function onForgetCompanion(clientId: string) {
-  if (!await confirm({ message: t('sync.companion.confirm_forget'), variant: 'danger' })) return
-  const ok = await forgetCompanionClient(clientId)
-  if (ok) {
-    toast(t('sync.companion.forgotten'), 'success')
-    await fetchCompanionClients()
-  } else {
-    toast(t('sync.companion.forget_failed'), 'error')
-  }
-}
 
 const refresh = useAutoRefresh(loadSyncStatus, 10000)
 
@@ -717,7 +705,6 @@ async function uploadRcloneFile(e: Event) {
         :serve="companionServe"
         :dav-url="companionDavUrl"
         :loading="companionLoading"
-        @forget-client="onForgetCompanion"
         @refresh="fetchCompanionClients"
       />
     </div>

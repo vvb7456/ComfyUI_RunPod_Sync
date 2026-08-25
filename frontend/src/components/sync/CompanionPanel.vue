@@ -7,7 +7,6 @@ import StatusDot from '@/components/ui/StatusDot.vue'
 import MsIcon from '@/components/ui/MsIcon.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import HelpTip from '@/components/ui/HelpTip.vue'
-import UsageBar from '@/components/ui/UsageBar.vue'
 import type { CompanionClient } from '@/types/sync'
 import { useClipboard } from '@/composables/useClipboard'
 
@@ -21,7 +20,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'forget-client': [clientId: string]
   refresh: []
 }>()
 
@@ -29,6 +27,7 @@ const { t } = useI18n({ useScope: 'global' })
 const { copy } = useClipboard()
 
 const onlineCount = computed(() => props.clients.filter(c => c.online).length)
+// 仅展示在线客户端时 onlineCount 恒等于 clients.length, 保留是为了与旧契约兼容 (SectionHeader 统计文案)。
 
 function fmtRelative(epoch: number) {
   if (!epoch) return t('sync.companion.never_seen')
@@ -38,13 +37,6 @@ function fmtRelative(epoch: number) {
   if (sec < 3600) return `${Math.floor(sec / 60)}m`
   if (sec < 86400) return `${Math.floor(sec / 3600)}h`
   return new Date(epoch * 1000).toLocaleDateString()
-}
-
-function fmtSpeed(bps?: number) {
-  if (!bps || bps <= 0) return ''
-  if (bps < 1024) return `${bps} B/s`
-  if (bps < 1024 * 1024) return `${(bps / 1024).toFixed(1)} KB/s`
-  return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`
 }
 
 function methodLabel(m?: string) {
@@ -70,10 +62,6 @@ function isPulling(c: CompanionClient) {
 
 async function copyDav() {
   if (props.davUrl) await copy(props.davUrl)
-}
-
-function onForget(c: CompanionClient) {
-  emit('forget-client', c.client_id)
 }
 </script>
 
@@ -126,12 +114,12 @@ function onForget(c: CompanionClient) {
     </div>
   </div>
 
-  <!-- ── 已连客户端 ── -->
+  <!-- ── 已连接的客户端 ── -->
   <SectionHeader icon="monitor" class="clients-head">
     {{ t('sync.companion.clients_title') }}
     <template #actions>
       <span v-if="clients.length" class="clients-count">
-        {{ clients.length }} · {{ onlineCount }} {{ t('sync.companion.online_short') }}
+        {{ onlineCount }} {{ t('sync.companion.online_short') }}
       </span>
     </template>
   </SectionHeader>
@@ -158,41 +146,20 @@ function onForget(c: CompanionClient) {
       v-for="c in clients"
       :key="c.client_id"
       class="client-card"
-      :class="{ offline: !c.online, pulling: isPulling(c) }"
+      :class="{ pulling: isPulling(c) }"
     >
-      <button class="forget-btn" :title="t('sync.companion.forget')" @click="onForget(c)">
-        <MsIcon name="close" size="xs" />
-      </button>
-
       <div class="c-top">
         <div class="c-avatar"><MsIcon name="monitor" /></div>
         <div class="c-id">
           <div class="c-name">{{ c.hostname || c.client_id }}</div>
           <div class="c-sub">
             <span v-if="c.app_version" class="mono">v{{ c.app_version }}</span>
-            <span class="c-online">
-              <StatusDot :status="c.online ? 'online' : 'offline'" size="sm" />
-              {{ c.online ? t('sync.companion.client_online') : t('sync.companion.client_offline') }}
+            <span class="pill" :class="`st-${c.status || 'idle'}`">
+              <MsIcon name="wifi_tethering" size="xxs" /> {{ t(statusKey(c.status)) }}
             </span>
+            <span class="hb"><MsIcon name="schedule" size="xxs" /> {{ fmtRelative(c.last_seen) }}</span>
           </div>
         </div>
-      </div>
-
-      <div class="c-status">
-        <span class="pill" :class="`st-${c.status || 'idle'}`">
-          <MsIcon name="wifi_tethering" size="xxs" /> {{ t(statusKey(c.status)) }}
-        </span>
-        <span class="hb"><MsIcon name="schedule" size="xxs" /> {{ fmtRelative(c.last_seen) }}</span>
-      </div>
-
-      <!-- 拉取进度 -->
-      <div v-if="isPulling(c) && c.progress" class="c-prog">
-        <div class="prog-line">
-          <span class="prog-file mono" v-if="c.progress.file">{{ c.progress.file }}</span>
-          <span class="prog-pct mono" v-if="c.progress.pct != null">{{ Math.round(c.progress.pct) }}%</span>
-        </div>
-        <UsageBar v-if="c.progress.pct != null" :percent="c.progress.pct" :height="4" />
-        <span class="prog-speed mono" v-if="c.progress.speed">{{ fmtSpeed(c.progress.speed) }}</span>
       </div>
 
       <!-- 规则只读镜像 -->
@@ -261,35 +228,20 @@ code.mono.grow { flex: 1; min-width: 0; }
   gap: 12px;
 }
 .client-card.pulling { border-color: color-mix(in srgb, var(--amber) 45%, var(--bd)); }
-.client-card.offline { opacity: .7; }
-.forget-btn {
-  position: absolute; top: 10px; right: 10px;
-  width: 24px; height: 24px; border-radius: 7px;
-  border: 1px solid var(--bd); background: none; color: var(--t3);
-  cursor: pointer; display: grid; place-items: center; transition: .15s;
-}
-.forget-btn:hover { color: var(--red); border-color: var(--red); }
 
-.c-top { display: flex; align-items: flex-start; gap: 11px; padding-right: 26px; }
+.c-top { display: flex; align-items: flex-start; gap: 11px; }
 .c-avatar { width: 36px; height: 36px; border-radius: 9px; background: var(--bg2); color: var(--t2); display: grid; place-items: center; flex: none; }
 .client-card.pulling .c-avatar { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
 .c-id { min-width: 0; flex: 1; }
 .c-name { font-size: .92rem; font-weight: 640; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.c-sub { display: flex; align-items: center; gap: 10px; margin-top: 3px; font-size: .72rem; color: var(--t3); }
-.c-online { display: inline-flex; align-items: center; gap: 4px; }
+/* 版本号 / idle pill / 在线时间 共一行: 三个内联元素随容器自然折行, 不各自占行 */
+.c-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 3px; font-size: .72rem; color: var(--t3); }
 
-.c-status { display: flex; align-items: center; gap: 8px; }
 .pill { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--bg2); color: var(--t2); }
 .pill.st-syncing, .pill.st-pulling, .pill.st-busy { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
 .pill.st-error { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
 .pill.st-idle { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
 .hb { display: inline-flex; align-items: center; gap: 3px; font-size: .72rem; color: var(--t3); font-variant-numeric: tabular-nums; }
-
-.c-prog { display: flex; flex-direction: column; gap: 6px; background: var(--bg2); border-radius: 8px; padding: 8px 10px; }
-.prog-line { display: flex; justify-content: space-between; gap: 8px; font-size: .72rem; color: var(--t2); }
-.prog-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prog-pct { color: var(--amber); font-weight: 600; }
-.prog-speed { font-size: .7rem; color: var(--green); }
 
 .c-rules { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--bd); padding-top: 11px; }
 .rules-k { font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); }

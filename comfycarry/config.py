@@ -14,7 +14,7 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 # ── 版本号 (唯一源) ──────────────────────────────────────────
-APP_VERSION = "v0.6.2"
+APP_VERSION = "v0.6.3"
 
 # ── 核心路径常量 ─────────────────────────────────────────────
 # 面板的路径约定: 对外 (UI / 规则数据 / 文件 API) 一律用 "workspace 根相对路径",
@@ -484,9 +484,6 @@ COMPANION_SERVE_ROOT = os.environ.get(
     "COMPANION_SERVE_ROOT",
     os.path.join(COMFYUI_DIR, "output"),
 )
-
-# 已知客户端状态文件 (心跳上报)
-COMPANION_CLIENTS_FILE = WORKSPACE_ROOT / ".companion_clients.json"
 
 
 # ── 实例标签 (尽力取已有实例名配置, 无则空) ─────────────────

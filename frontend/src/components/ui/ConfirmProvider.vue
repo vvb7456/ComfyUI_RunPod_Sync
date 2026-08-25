@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, provide } from 'vue'
+import { ref, shallowRef, provide } from 'vue'
+import type { Ref } from 'vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import { confirmKey, type ConfirmOptions, type ConfirmResult } from '@/composables/useConfirm'
 
@@ -14,6 +15,9 @@ const cancelText = ref<string | undefined>()
 const altText = ref<string | undefined>()
 const altVariant = ref<'default' | 'primary' | 'danger' | 'success' | undefined>()
 const dontAskKey = ref<string | undefined>()
+const checkboxLabel = ref<string | undefined>()
+const checkboxInternal = ref(false)
+const checkboxRef = shallowRef<Ref<boolean> | undefined>()
 
 interface QueueItem {
   options: ConfirmOptions
@@ -46,6 +50,9 @@ function showDialog(options: ConfirmOptions, resolve: (value: ConfirmResult) => 
   altText.value = options.altText
   altVariant.value = options.altVariant
   dontAskKey.value = options.dontAskKey
+  checkboxLabel.value = options.checkboxLabel
+  checkboxInternal.value = options.checkboxDefault ?? false
+  checkboxRef.value = options.checkboxRef
   resolveFn = resolve
   visible.value = true
 }
@@ -96,6 +103,9 @@ provide(confirmKey, confirm)
     :alt-text="altText"
     :alt-variant="altVariant"
     :show-dont-ask="!!dontAskKey"
+    :checkbox-label="checkboxLabel"
+    :checkbox-internal="checkboxInternal"
+    :checkbox-ref="checkboxRef"
     @confirm="onConfirm"
     @alt="onAlt"
     @cancel="onCancel"

@@ -5,13 +5,13 @@ import type { TunnelData } from '@/types/tunnel'
 
 /**
  * Companion 桌面客户端状态轮询。
- * - 间隔 20s 轮询 GET /api/companion/clients
+ * - 间隔 20s 轮询 GET /api/companion/clients (后端只返回在线客户端, 不持久化连接记录)
  * - 「地址」栏不显示后端构造的 dav_url (面板先于 tunnel 启动时会固化本地地址),
  *   改取 /api/tunnel/status 的主域名 (与 Tunnel/SSH 页一致)。
  * - onUnmounted 自动停；只在显式 start/stop 之间运行
  */
 export function useCompanionClients(opts?: { pollInterval?: number }) {
-  const { get, del } = useApiFetch()
+  const { get } = useApiFetch()
 
   const clients: Ref<CompanionClient[]> = ref([])
   const serve = ref<CompanionServeStatus | null>(null)
@@ -69,12 +69,6 @@ export function useCompanionClients(opts?: { pollInterval?: number }) {
     }
   }
 
-  /** 忘记客户端 (从面板记录中删除) */
-  async function forgetClient(clientId: string): Promise<boolean> {
-    const d = await del<{ ok?: boolean; error?: string }>(`/api/companion/clients/${encodeURIComponent(clientId)}`)
-    return !!d?.ok
-  }
-
   onUnmounted(stopPolling)
 
   return {
@@ -83,7 +77,6 @@ export function useCompanionClients(opts?: { pollInterval?: number }) {
     davUrl,
     loading,
     fetchClients,
-    forgetClient,
     startPolling,
     stopPolling,
   }

@@ -45,7 +45,7 @@
   "api_key": {
     "help": "用于外部脚本或应用通过 X-API-Key / Bearer 方式访问 API",
     "regenerate": "重新生成",
-    "regenerate_confirm": "确定要重新生成 API Key 吗？\n\n旧的 Key 将立即失效，所有使用旧 Key 的外部应用需要更新。",
+    "regenerate_confirm": "确定要重新生成 API Key 吗？旧 Key 将立即失效。",
     "regenerated": "API Key 已重新生成",
     "regenerate_failed": "重新生成失败"
   },
@@ -64,23 +64,30 @@
   },
   "reinit": {
     "title": "重新初始化",
-    "help": "删除 ComfyUI 并重新进入部署向导。系统依赖和 PyTorch 保留",
-    "keep_models": "保留模型文件与产物",
     "btn": "重新初始化",
-    "confirm_keep": "确定要重新初始化吗？\n\n将删除 ComfyUI 安装（保留 models/input/output 中的模型文件与产物），停止 ComfyUI 和同步服务，重新进入部署向导。\n\n系统依赖、PyTorch、Tunnel 不受影响。",
-    "confirm_delete": "确定要重新初始化吗？\n\n将删除整个 ComfyUI 目录（包括所有模型文件），停止 ComfyUI 和同步服务，重新进入部署向导。\n\n模型文件将被永久删除！",
-    "confirm_delete_final": "所有模型文件将被永久删除，无法恢复。\n\n确定继续？",
+    "keep_models": "保留模型文件与产物",
+    "confirm": "确定要重新初始化吗？ComfyUI 安装将被重置，并重新进入部署向导。",
+    "confirm_delete_final": "未勾选保留模型时，整个 ComfyUI 目录（含所有模型文件）将被永久删除，无法恢复。\n\n确定继续？",
     "in_progress": "正在重新初始化...",
     "success": "已重置，正在跳转到部署向导...",
     "partial_fail": "部分操作失败"
   },
-  "log": {
-    "title": "ComfyCarry 日志"
+  "about": {
+    "title": "关于",
+    "desc": "让 ComfyUI 的部署、管理与创作更轻松。",
+    "version": "版本",
+    "project_info": "项目信息",
+    "github": "GitHub",
+    "dockerhub": "Docker Hub",
+    "credit_prefix": "由 ",
+    "credit_suffix": " 开发"
+  },
+  "maintenance": {
+    "title": "维护",
+    "restart_desc": "重启 ComfyCarry 服务",
+    "reinit_desc": "重新进入部署向导"
   },
   "update": {
-    "title": "版本",
-    "current_version": "当前",
-    "latest_commit": "最新",
     "up_to_date": "已是最新版本",
     "update_available": "有新版本可用",
     "check_btn": "检查更新",

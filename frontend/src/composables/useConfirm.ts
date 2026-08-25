@@ -1,5 +1,5 @@
 import { inject } from 'vue'
-import type { InjectionKey } from 'vue'
+import type { InjectionKey, Ref } from 'vue'
 
 export interface ConfirmOptions {
   title?: string
@@ -13,6 +13,13 @@ export interface ConfirmOptions {
   altVariant?: 'default' | 'primary' | 'danger' | 'success'
   /** When set, show a "Don't ask again" checkbox. Value is the localStorage key. */
   dontAskKey?: string
+  /** When set, show an additional checkbox with this label above the footer buttons.
+   *  If `checkboxRef` is provided, its value is two-way bound (caller reads it after confirm). */
+  checkboxLabel?: string
+  /** Default value of the custom checkbox (used when checkboxRef is not provided). */
+  checkboxDefault?: boolean
+  /** Optional external ref to two-way bind the custom checkbox state. */
+  checkboxRef?: Ref<boolean>
 }
 
 export type ConfirmResult = boolean | 'alt'

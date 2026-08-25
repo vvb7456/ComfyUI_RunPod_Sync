@@ -45,7 +45,7 @@
   "api_key": {
     "help": "For external scripts or apps to access the API via X-API-Key / Bearer",
     "regenerate": "Regenerate",
-    "regenerate_confirm": "Regenerate API Key?\n\nThe old key will be immediately invalidated. All external apps using the old key will need to be updated.",
+    "regenerate_confirm": "Regenerate API Key? The old key will stop working immediately.",
     "regenerated": "API Key regenerated",
     "regenerate_failed": "Regeneration failed"
   },
@@ -64,23 +64,30 @@
   },
   "reinit": {
     "title": "Re-initialize",
-    "help": "Delete ComfyUI and return to setup wizard. System dependencies and PyTorch are preserved",
-    "keep_models": "Keep model files & outputs",
     "btn": "Re-initialize",
-    "confirm_keep": "Re-initialize?\n\nThis will delete the ComfyUI installation (keeping model files and outputs in models/input/output), stop ComfyUI and sync services, and return to the setup wizard.\n\nSystem dependencies, PyTorch, and Tunnel are not affected.",
-    "confirm_delete": "Re-initialize?\n\nThis will delete the entire ComfyUI directory (including all model files), stop ComfyUI and sync services, and return to the setup wizard.\n\nModel files will be permanently deleted!",
-    "confirm_delete_final": "All model files will be permanently deleted and cannot be recovered.\n\nContinue?",
+    "keep_models": "Keep model files & outputs",
+    "confirm": "Re-initialize? The ComfyUI installation will be reset and the setup wizard reopened.",
+    "confirm_delete_final": "When \"Keep model files\" is unchecked, the entire ComfyUI directory (including all model files) will be permanently deleted and cannot be recovered.\n\nContinue?",
     "in_progress": "Re-initializing...",
     "success": "Reset complete, redirecting to setup wizard...",
     "partial_fail": "Some operations failed"
   },
-  "log": {
-    "title": "ComfyCarry Logs"
+  "about": {
+    "title": "About",
+    "desc": "A simpler way to deploy, manage, and create with ComfyUI.",
+    "version": "Version",
+    "project_info": "Project",
+    "github": "GitHub",
+    "dockerhub": "Docker Hub",
+    "credit_prefix": "Powered by ",
+    "credit_suffix": ""
+  },
+  "maintenance": {
+    "title": "Maintenance",
+    "restart_desc": "Restart the ComfyCarry service",
+    "reinit_desc": "Open the setup wizard again"
   },
   "update": {
-    "title": "Version",
-    "current_version": "Current",
-    "latest_commit": "Latest",
     "up_to_date": "Already up to date",
     "update_available": "Update available",
     "check_btn": "Check for Updates",

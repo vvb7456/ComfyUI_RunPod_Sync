@@ -10,10 +10,9 @@ const promptSnapshot = ref('')
 </script>
 
 <script setup lang="ts">
-import { computed, onUnmounted } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TabSwitcher from '@/components/ui/TabSwitcher.vue'
-import LogPanel from '@/components/ui/LogPanel.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import Spinner from '@/components/ui/Spinner.vue'
 import SecretInput from '@/components/ui/SecretInput.vue'
@@ -28,7 +27,6 @@ import BaseSelect from '@/components/form/BaseSelect.vue'
 import FieldControlRow from '@/components/form/FieldControlRow.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import { useApiFetch } from '@/composables/useApiFetch'
-import { useLogStream } from '@/composables/useLogStream'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
@@ -100,6 +98,11 @@ const translateProviderOptions = computed(() => [
 
 // ─── Tab state ────────────────────────────────────────────────────────────────
 
+const repoUrl = 'https://github.com/vvb7456/ComfyCarry'
+const dockerHubUrl = 'https://hub.docker.com/r/erocraft/comfycarry'
+const erocraftUrl = 'https://www.erocraft.com/'
+const copyrightRange = `2015–${new Date().getFullYear()}`
+
 const activeTab = ref('comfycarry')
 const tabs = computed(() => [
   { key: 'comfycarry', label: 'ComfyCarry', icon: 'dashboard' },
@@ -107,13 +110,6 @@ const tabs = computed(() => [
   { key: 'civitai', label: 'CivitAI', icon: 'palette' },
   { key: 'llm', label: 'LLM', icon: 'smart_toy' },
 ])
-
-// ─── Log stream ───────────────────────────────────────────────────────────────
-
-const { lines: logLines, status: logStatus, hasMore: logHasMore, loadingMore: logLoadingMore, prepending: logPrepending, onScroll: logOnScroll, start: logStart, stop: logStop } = useLogStream({
-  historyUrl: '/api/logs/dashboard',
-  streamUrl: '/api/logs/dashboard/stream',
-})
 
 // ─── Password state ───────────────────────────────────────────────────────────
 
@@ -372,11 +368,6 @@ async function onTabChange(tab: string) {
   // 离开 prompt/llm 表单 tab 时守卫未保存更改
   if (!(await guard.guardTabSwitch())) return
   activeTab.value = tab
-  if (tab === 'comfycarry') {
-    logStart()
-  } else {
-    logStop()
-  }
   // 守卫保证进入时必然无未保存更改, 可安全用服务端值刷新基线
   if (tab === 'llm' && !llmProvidersLoaded.value) await loadLlmTab()
   if (tab === 'prompt') {
@@ -413,7 +404,7 @@ async function changePassword() {
 // ─── API Key ──────────────────────────────────────────────────────────────────
 
 async function regenerateApiKey() {
-  if (!await confirm({ message: t('settings.api_key.regenerate_confirm'), variant: 'danger' })) return
+  if (!await confirm({ message: t('settings.api_key.regenerate_confirm') })) return
   regenLoading.value = true
   const data = await post<{ ok?: boolean; api_key?: string; error?: string }>('/api/settings/api-key', {})
   regenLoading.value = false
@@ -479,7 +470,7 @@ async function importConfig(event: Event) {
     const text = await file.text()
     const config = JSON.parse(text)
     if (!config._version) { toast(t('settings.config.invalid_format'), 'error'); return }
-    if (!await confirm({ message: t('settings.config.import_confirm', { date: config._exported_at || t('settings.config.unknown_date') }), variant: 'danger' })) return
+    if (!await confirm({ message: t('settings.config.import_confirm', { date: config._exported_at || t('settings.config.unknown_date') }) })) return
     const data = await post<{ message?: string }>('/api/settings/import-config', JSON.parse(text))
     if (!data) return
     toast(apiMessageText(data), 'success')
@@ -499,13 +490,18 @@ async function restartDashboard() {
 }
 
 async function reinitialize() {
-  const keepModels = reinitKeepModels.value
-  const confirmMsg = keepModels ? t('settings.reinit.confirm_keep') : t('settings.reinit.confirm_delete')
-  if (!await confirm({ message: confirmMsg, variant: 'danger' })) return
-  if (!keepModels && !await confirm({ message: t('settings.reinit.confirm_delete_final'), variant: 'danger' })) return
+  reinitKeepModels.value = true
+  if (!await confirm({
+    message: t('settings.reinit.confirm'),
+    confirmText: t('settings.reinit.btn'),
+    checkboxLabel: t('settings.reinit.keep_models'),
+    checkboxDefault: true,
+    checkboxRef: reinitKeepModels,
+  })) return
+  if (!reinitKeepModels.value && !await confirm({ message: t('settings.reinit.confirm_delete_final') })) return
   reinitLoading.value = true
   toast(t('settings.reinit.in_progress'), 'info')
-  const data = await post<{ ok?: boolean; errors?: ApiErrorBody[] }>('/api/settings/reinitialize', { keep_models: keepModels })
+  const data = await post<{ ok?: boolean; errors?: ApiErrorBody[] }>('/api/settings/reinitialize', { keep_models: reinitKeepModels.value })
   reinitLoading.value = false
   if (!data) return
   if (data.ok) {
@@ -645,11 +641,6 @@ async function testLlmConnection() {
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 loadSettings()
-logStart()
-
-onUnmounted(() => {
-  logStop()
-})
 </script>
 
 <template>
@@ -671,9 +662,7 @@ onUnmounted(() => {
       />
 
       <!-- ═══ Tab: ComfyCarry ═══════════════════════════════ -->
-      <div v-show="activeTab === 'comfycarry'" class="settings-grid">
-        <!-- Left column -->
-        <div class="settings-col">
+      <div v-show="activeTab === 'comfycarry'" class="settings-centered">
           <!-- Password -->
           <BaseCard density="roomy">
             <h3 class="settings-card-title">
@@ -740,7 +729,7 @@ onUnmounted(() => {
               style="margin-bottom:12px"
             />
             <div class="btn-row-end">
-              <BaseButton variant="danger" size="sm" :loading="regenLoading" @click="regenerateApiKey">
+              <BaseButton variant="primary" size="sm" :loading="regenLoading" @click="regenerateApiKey">
                 {{ t('settings.api_key.regenerate') }}
               </BaseButton>
             </div>
@@ -752,105 +741,110 @@ onUnmounted(() => {
               <MsIcon name="package_2" />
               {{ t('settings.config.title') }}
             </h3>
-            <div style="display:flex;flex-direction:column;gap:12px">
-              <div>
-                <p style="font-size:.82rem;color:var(--t2);margin:0 0 8px">{{ t('settings.config.export_desc') }}</p>
-                <div class="btn-row-end">
-                  <BaseButton variant="primary" size="sm" @click="exportConfig">
-                    <MsIcon name="download" color="none" />
-                    {{ t('settings.config.export_btn') }}
-                  </BaseButton>
-                </div>
+            <div class="settings-action-list">
+              <div class="settings-action-row">
+                <p class="settings-action-copy">{{ t('settings.config.export_desc') }}</p>
+                <BaseButton variant="primary" size="sm" @click="exportConfig">
+                  <MsIcon name="download" />
+                  {{ t('settings.config.export_btn') }}
+                </BaseButton>
               </div>
-              <div>
-                <p style="font-size:.82rem;color:var(--t2);margin:0 0 8px">{{ t('settings.config.import_desc') }}</p>
-                <div class="btn-row-end">
-                  <BaseButton variant="primary" size="sm" @click="($refs.importFileInput as HTMLInputElement)?.click()">
-                    <MsIcon name="upload" color="none" />
-                    {{ t('settings.config.import_btn') }}
-                  </BaseButton>
-                  <input ref="importFileInput" type="file" accept=".json" @change="importConfig" style="display:none" />
-                </div>
+              <div class="settings-action-row">
+                <p class="settings-action-copy">{{ t('settings.config.import_desc') }}</p>
+                <BaseButton variant="primary" size="sm" @click="($refs.importFileInput as HTMLInputElement)?.click()">
+                  <MsIcon name="upload" />
+                  {{ t('settings.config.import_btn') }}
+                </BaseButton>
+                <input ref="importFileInput" type="file" accept=".json" @change="importConfig" style="display:none" />
               </div>
             </div>
           </BaseCard>
 
-          <!-- Update -->
+          <!-- Maintenance -->
           <BaseCard density="roomy">
             <h3 class="settings-card-title">
-              <MsIcon name="update" />
-              {{ t('settings.update.title') }}
+              <MsIcon name="build" />
+              {{ t('settings.maintenance.title') }}
             </h3>
-            <div class="update-info">
-              <div class="update-row">
-                <span class="update-label">{{ t('settings.update.current_version') }}</span>
-                <span class="update-value">{{ app.version || '—' }} <code>{{ (app.commit || '').substring(0, 8) || '—' }}</code></span>
+            <div class="settings-action-list">
+              <div class="settings-action-row">
+                <p class="settings-action-copy">{{ t('settings.maintenance.restart_desc') }}</p>
+                <BaseButton variant="primary" size="sm" @click="restartDashboard">
+                  {{ t('settings.restart_btn') }}
+                </BaseButton>
               </div>
-              <div v-if="updateInfo" class="update-row">
-                <span class="update-label">{{ t('settings.update.latest_commit') }}</span>
-                <span class="update-value">{{ updateInfo.latest_version }}</span>
+              <div class="settings-action-row">
+                <p class="settings-action-copy">{{ t('settings.maintenance.reinit_desc') }}</p>
+                <BaseButton variant="primary" size="sm" :loading="reinitLoading" @click="reinitialize">
+                  {{ t('settings.reinit.btn') }}
+                </BaseButton>
               </div>
-              <div v-if="updateInfo" class="update-status">
-                <StatusDot :status="updateInfo.has_update ? 'pending' : 'success'" />
-                <span>{{ updateInfo.has_update ? t('settings.update.update_available') : t('settings.update.up_to_date') }}</span>
-              </div>
-            </div>
-            <div v-if="updateApplying && updatePhase" class="update-phase">
-              <Spinner size="sm" />
-              <span>{{ updatePhase }}</span>
-            </div>
-            <div class="btn-row-end" style="gap:8px">
-              <!-- 「重启面板」的对象是面板本身而不是设置页, 按页头准入判据不该在页头,
-                   放在版本卡里与检查更新同区 -->
-              <BaseButton size="sm" @click="restartDashboard">
-                <MsIcon name="restart_alt" />
-                {{ t('settings.restart_btn') }}
-              </BaseButton>
-              <BaseButton size="sm" :disabled="updateChecking || updateApplying" :loading="updateChecking" @click="checkUpdate">
-                <MsIcon v-if="!updateChecking" name="refresh" />
-                {{ t('settings.update.check_btn') }}
-              </BaseButton>
-              <BaseButton
-                v-if="updateInfo?.has_update"
-                variant="primary"
-                size="sm"
-                :disabled="updateApplying"
-                :loading="updateApplying"
-                @click="applyUpdate"
-              >
-                <MsIcon v-if="!updateApplying" name="download" />
-                {{ t('settings.update.apply_btn') }}
-              </BaseButton>
             </div>
           </BaseCard>
 
-          <!-- Reinitialize -->
-          <BaseCard density="roomy" tone="danger" class="reinit-card">
-            <h3 class="settings-card-title" style="color:var(--red)">
-              <MsIcon name="warning" />
-              {{ t('settings.reinit.title') }}
-              <HelpTip :text="t('settings.reinit.help')" />
-            </h3>
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <label style="font-size:.82rem;color:var(--t2);display:flex;align-items:center;gap:6px;cursor:pointer">
-                <input type="checkbox" v-model="reinitKeepModels" class="form-checkbox" />
-                {{ t('settings.reinit.keep_models') }}
-              </label>
-              <BaseButton variant="danger" size="sm" :loading="reinitLoading" @click="reinitialize">
-                {{ t('settings.reinit.btn') }}
-              </BaseButton>
-            </div>
-          </BaseCard>
-        </div>
+          <!-- About -->
+          <BaseCard density="roomy" radius="lg" class="about-card">
+            <section class="about-content" aria-labelledby="about-product-name">
+              <header class="about-identity">
+                <img class="about-logo" src="/logo-tile.svg" alt="" aria-hidden="true" />
+                <h3 id="about-product-name" class="about-product-name">ComfyCarry</h3>
+                <div class="about-build">
+                  <span>{{ t('settings.about.version') }} {{ app.version || '—' }}</span>
+                  <span class="about-meta-sep" aria-hidden="true">·</span>
+                  <code>{{ (app.commit || '').substring(0, 8) || '—' }}</code>
+                </div>
+              </header>
 
-        <!-- Right column: log -->
-        <div class="log-col">
-          <h3 class="settings-card-title" style="margin-bottom:12px">
-            <MsIcon name="receipt_long" />
-            {{ t('settings.log.title') }}
-          </h3>
-          <LogPanel :lines="logLines" :status="logStatus" :has-more="logHasMore" :loading-more="logLoadingMore" :prepending="logPrepending" :on-scroll="logOnScroll" style="height:calc(100% - 50px)" />
-        </div>
+              <p class="about-desc">{{ t('settings.about.desc') }}</p>
+
+              <div class="about-update-block">
+                <div class="about-actions">
+                  <BaseButton variant="primary" size="sm" :disabled="updateChecking || updateApplying" :loading="updateChecking" @click="checkUpdate">
+                    {{ t('settings.update.check_btn') }}
+                  </BaseButton>
+                  <BaseButton
+                    v-if="updateInfo?.has_update"
+                    variant="primary"
+                    size="sm"
+                    :disabled="updateApplying"
+                    :loading="updateApplying"
+                    @click="applyUpdate"
+                  >
+                    {{ t('settings.update.apply_btn') }}
+                  </BaseButton>
+                </div>
+                <div v-if="updateInfo || (updateApplying && updatePhase)" class="about-update-feedback" aria-live="polite">
+                  <span v-if="updateInfo" class="about-update-status">
+                    <StatusDot :status="updateInfo.has_update ? 'pending' : 'success'" size="sm" />
+                    {{ updateInfo.has_update ? t('settings.update.update_available') : t('settings.update.up_to_date') }}
+                    <span v-if="updateInfo.latest_version" class="about-update-version">{{ updateInfo.latest_version }}</span>
+                  </span>
+                  <span v-if="updateApplying && updatePhase" class="update-phase">
+                    <Spinner size="sm" />
+                    {{ updatePhase }}
+                  </span>
+                </div>
+              </div>
+
+              <footer class="about-project" :aria-label="t('settings.about.project_info')">
+                <p class="about-project-label">{{ t('settings.about.project_info') }}</p>
+                <div class="about-project-links">
+                  <a class="about-project-link" :href="repoUrl" target="_blank" rel="noopener noreferrer">
+                    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" /></svg>
+                    <span>{{ t('settings.about.github') }}</span>
+                  </a>
+                  <a class="about-project-link" :href="dockerHubUrl" target="_blank" rel="noopener noreferrer">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13.983 11.078h2.119a.186.186 0 0 0 .186-.185V9.006a.186.186 0 0 0-.186-.186h-2.119a.185.185 0 0 0-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 0 0 .186-.186V3.574a.186.186 0 0 0-.186-.185h-2.118a.185.185 0 0 0-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 0 0 .186-.186V6.29a.186.186 0 0 0-.186-.185h-2.118a.185.185 0 0 0-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 0 0 .184-.186V6.29a.185.185 0 0 0-.185-.185H8.1a.185.185 0 0 0-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 0 0 .185-.186V6.29a.185.185 0 0 0-.185-.185H5.136a.186.186 0 0 0-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 0 0 .186-.185V9.006a.186.186 0 0 0-.186-.186h-2.118a.185.185 0 0 0-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 0 0 .184-.185V9.006a.185.185 0 0 0-.184-.186h-2.12a.185.185 0 0 0-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 0 0 .185-.185V9.006a.185.185 0 0 0-.184-.186h-2.12a.186.186 0 0 0-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 0 0 .184-.185V9.006a.185.185 0 0 0-.184-.186h-2.12a.185.185 0 0 0-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 0 0-.75.748 11.376 11.376 0 0 0 .692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 0 0 3.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z" /></svg>
+                    <span>{{ t('settings.about.dockerhub') }}</span>
+                  </a>
+                </div>
+                <p class="about-credit">
+                  {{ t('settings.about.credit_prefix') }}<a class="about-author" :href="erocraftUrl" target="_blank" rel="noopener noreferrer" lang="zh-CN">艾萝工坊</a>{{ t('settings.about.credit_suffix') }}
+                </p>
+                <p class="about-copyright" lang="en">© {{ copyrightRange }} Erocraft</p>
+              </footer>
+            </section>
+          </BaseCard>
       </div>
 
       <!-- ═══ Tab: Prompt Editor ═══════════════════════════ -->
@@ -1069,26 +1063,18 @@ onUnmounted(() => {
   height: 100%;
 }
 
-/* Vue-unique: log column sizing */
-.log-col {
-  min-height: 400px;
-  max-height: calc(100vh - 200px);
-  display: flex;
-  flex-direction: column;
-}
-
 /* Vue-unique: button row align right */
 .btn-row-end {
   display: flex;
   justify-content: flex-end;
 }
 
-/* Vue-unique: CivitAI / LLM centered layout */
+/* Vue-unique: centered settings-tab layout */
 .settings-centered {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 640px;
+  max-width: 760px;
   margin: 8px auto 0;
 }
 
@@ -1102,54 +1088,189 @@ onUnmounted(() => {
   margin: 0 0 14px;
 }
 
-/* Vue-unique: reinit danger card */
-.reinit-card {
-  border: 1px solid rgba(239, 68, 68, 0.25);
-}
-
-/* Vue-unique: update card info */
-.update-info {
+/* Vue-unique: settings rows with copy left and a standard action right */
+.settings-action-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 14px;
-  font-size: var(--text-sm);
 }
-.update-row {
+.settings-action-row {
   display: flex;
-  gap: 8px;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-3) 0;
 }
-.update-label {
-  color: var(--t3);
-  min-width: 100px;
+.settings-action-row:first-child {
+  padding-top: 0;
+}
+.settings-action-row:last-child {
+  padding-bottom: 0;
+}
+.settings-action-copy {
+  min-width: 0;
+  margin: 0;
+  color: var(--t2);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.settings-action-row > :deep(.base-btn) {
   flex-shrink: 0;
 }
-.update-value {
-  color: var(--t1);
+
+/* Vue-unique: centered About identity block */
+.about-card {
+  --card-py-roomy: clamp(28px, 5vw, 42px);
+  --card-px-roomy: clamp(20px, 6vw, 48px);
 }
-.update-value code {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: var(--text-xs);
-  background: var(--bg3);
+.about-content {
+  text-align: center;
+}
+.about-logo {
+  display: block;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 14px;
+  border-radius: 14px;
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--ac) 24%, transparent);
+}
+.about-product-name {
+  margin: 0;
+  color: var(--t1);
+  font-size: 1.32rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -.015em;
+}
+.about-build {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 7px;
+  color: var(--t2);
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.about-build code {
   padding: 1px 5px;
   border-radius: var(--r-xs);
+  background: var(--bg2);
+  color: var(--t2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .7rem;
 }
-.update-status {
+.about-meta-sep {
+  color: var(--t3);
+}
+.about-desc {
+  max-width: 50ch;
+  margin: 17px auto 0;
+  color: var(--t2);
+  font-size: .86rem;
+  line-height: 1.7;
+}
+.about-update-block {
+  margin-top: 20px;
+}
+.about-actions {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.about-update-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 14px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.about-update-status,
+.update-phase {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--t2);
+  font-size: .76rem;
+}
+.about-update-version {
+  color: var(--t3);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: var(--text-xs);
+}
+.about-project {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--bd);
+}
+.about-project-label {
+  margin: 0 0 11px;
+  color: var(--t3);
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+.about-project-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+}
+.about-project-link {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 4px;
-  font-size: var(--text-sm);
+  color: var(--ac);
+  font-size: .79rem;
   font-weight: 500;
+  text-decoration: none;
 }
-.update-phase {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  font-size: var(--text-sm);
+.about-project-link:hover,
+.about-author:hover {
+  color: var(--ac2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.about-project-link svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.about-credit {
+  margin: 14px 0 0;
   color: var(--t2);
+  font-size: .76rem;
+  line-height: 1.55;
+}
+.about-author {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+.about-copyright {
+  margin: 3px 0 0;
+  color: var(--t3);
+  font-size: .72rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 520px) {
+  .settings-action-row {
+    align-items: flex-start;
+    gap: var(--sp-3);
+  }
+  .settings-action-copy {
+    padding-top: 3px;
+  }
+  .about-card {
+    --card-py-roomy: 28px;
+    --card-px-roomy: 18px;
+  }
 }
 
 /* Vue-unique: mono variant for API key display */
