@@ -94,6 +94,14 @@
     "apply_btn": "Update Now",
     "checking": "Checking...",
     "applying": "Updating...",
+    "phase": {
+      "downloading": "Downloading update…",
+      "extracting": "Extracting files…",
+      "updating": "Installing update…",
+      "warning": "Some resources could not be updated; continuing…",
+      "restarting": "Restarting ComfyCarry…",
+      "done": "Update complete; reloading…"
+    },
     "check_failed": "Check failed",
     "done": "Update completed, restarting...",
     "error": "Update failed"

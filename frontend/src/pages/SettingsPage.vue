@@ -14,7 +14,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TabSwitcher from '@/components/ui/TabSwitcher.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
-import Spinner from '@/components/ui/Spinner.vue'
 import SecretInput from '@/components/ui/SecretInput.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import MsIcon from '@/components/ui/MsIcon.vue'
@@ -41,7 +40,7 @@ import type {
 
 defineOptions({ name: 'SettingsPage' })
 
-const { t } = useI18n({ useScope: 'global' })
+const { t, te } = useI18n({ useScope: 'global' })
 const { get, post, put } = useApiFetch()
 const { toast } = useToast()
 const { confirm } = useConfirm()
@@ -147,10 +146,32 @@ const updateInfo = ref<{
   has_update?: boolean
 } | null>(null)
 const updatePhase = ref('')
+const updateActionLabel = computed(() => {
+  if (updateChecking.value) return t('settings.update.checking')
+  if (updateApplying.value) return t('settings.update.applying')
+  return updateInfo.value?.has_update
+    ? t('settings.update.apply_btn')
+    : t('settings.update.check_btn')
+})
+
+function localizedUpdatePhase(phase: string, fallback = '') {
+  const key = `settings.update.phase.${phase}`
+  return te(key) ? t(key) : (fallback || phase)
+}
+
+async function runUpdateAction() {
+  if (updateChecking.value || updateApplying.value) return
+  if (updateInfo.value?.has_update) {
+    await applyUpdate()
+  } else {
+    await checkUpdate()
+  }
+}
 
 async function checkUpdate() {
   updateChecking.value = true
   updateInfo.value = null
+  updatePhase.value = ''
   const data = await get<{
     current_version: string
     current_commit: string
@@ -160,19 +181,26 @@ async function checkUpdate() {
     has_update: boolean
   }>('/api/update/check')
   updateChecking.value = false
-  if (!data) { toast(t('settings.update.check_failed'), 'error'); return }
+  if (!data) return
   updateInfo.value = data
 }
 
 async function applyUpdate() {
   if (!await confirm({ message: t('settings.update.apply_btn') + '?' })) return
   updateApplying.value = true
-  updatePhase.value = ''
+  updatePhase.value = t('settings.update.applying')
+  let terminalPhase = false
+  let updateCompleted = false
   try {
     const resp = await fetch('/api/update/apply', { method: 'POST' })
-    if (!resp.ok || !resp.body) {
+    if (!resp.ok) {
+      let message = t('settings.update.error')
+      try { message = apiErrorText(await resp.json(), message) } catch { /* ignore parse errors */ }
+      toast(message, 'error')
+      return
+    }
+    if (!resp.body) {
       toast(t('settings.update.error'), 'error')
-      updateApplying.value = false
       return
     }
     const reader = resp.body.getReader()
@@ -188,20 +216,30 @@ async function applyUpdate() {
         if (!line.startsWith('data: ')) continue
         try {
           const ev = JSON.parse(line.slice(6))
-          updatePhase.value = ev.message || ev.phase
+          updatePhase.value = localizedUpdatePhase(ev.phase, ev.message)
           if (ev.phase === 'done') {
+            terminalPhase = true
+            updateCompleted = true
             toast(t('settings.update.done'), 'success')
-            setTimeout(() => location.reload(), 4000)
+            setTimeout(() => {
+              updateApplying.value = false
+              location.reload()
+            }, 4000)
           } else if (ev.phase === 'error') {
+            terminalPhase = true
             toast(`${t('settings.update.error')}: ${ev.message}`, 'error')
-            updateApplying.value = false
           }
         } catch { /* ignore parse errors */ }
       }
     }
+    if (!terminalPhase) toast(t('settings.update.error'), 'error')
   } catch (e: any) {
     toast(`${t('settings.update.error')}: ${e.message}`, 'error')
-    updateApplying.value = false
+  } finally {
+    if (!updateCompleted) {
+      updateApplying.value = false
+      updatePhase.value = ''
+    }
   }
 }
 
@@ -799,30 +837,33 @@ loadSettings()
 
               <div class="about-update-block">
                 <div class="about-actions">
-                  <BaseButton variant="primary" size="sm" :disabled="updateChecking || updateApplying" :loading="updateChecking" @click="checkUpdate">
-                    {{ t('settings.update.check_btn') }}
-                  </BaseButton>
                   <BaseButton
-                    v-if="updateInfo?.has_update"
                     variant="primary"
                     size="sm"
-                    :disabled="updateApplying"
-                    :loading="updateApplying"
-                    @click="applyUpdate"
+                    :disabled="updateChecking || updateApplying"
+                    :loading="updateChecking || updateApplying"
+                    :aria-label="updateActionLabel"
+                    @click="runUpdateAction"
                   >
-                    {{ t('settings.update.apply_btn') }}
+                    {{ updateActionLabel }}
                   </BaseButton>
                 </div>
-                <div v-if="updateInfo || (updateApplying && updatePhase)" class="about-update-feedback" aria-live="polite">
-                  <span v-if="updateInfo" class="about-update-status">
+                <div
+                  class="about-update-status"
+                  aria-live="polite"
+                  :aria-busy="updateChecking || updateApplying"
+                >
+                  <template v-if="updateChecking || updateApplying">
+                    <span>{{ updateApplying ? updatePhase : t('settings.update.checking') }}</span>
+                  </template>
+                  <template v-else-if="updateInfo">
                     <StatusDot :status="updateInfo.has_update ? 'pending' : 'success'" size="sm" />
-                    {{ updateInfo.has_update ? t('settings.update.update_available') : t('settings.update.up_to_date') }}
-                    <span v-if="updateInfo.latest_version" class="about-update-version">{{ updateInfo.latest_version }}</span>
-                  </span>
-                  <span v-if="updateApplying && updatePhase" class="update-phase">
-                    <Spinner size="sm" />
-                    {{ updatePhase }}
-                  </span>
+                    <span>{{ updateInfo.has_update ? t('settings.update.update_available') : t('settings.update.up_to_date') }}</span>
+                    <span v-if="updateInfo.has_update && (updateInfo.latest_version || updateInfo.latest_commit)" class="about-update-target">
+                      <span v-if="updateInfo.latest_version">{{ updateInfo.latest_version }}</span>
+                      <code v-if="updateInfo.latest_commit">{{ updateInfo.latest_commit }}</code>
+                    </span>
+                  </template>
                 </div>
               </div>
 
@@ -1180,27 +1221,30 @@ loadSettings()
   gap: var(--sp-2);
   flex-wrap: wrap;
 }
-.about-update-feedback {
+.about-update-status {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px 14px;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
-.about-update-status,
-.update-phase {
-  display: inline-flex;
+  min-height: 1.5em;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
   color: var(--t2);
   font-size: .76rem;
+  line-height: 1.5;
 }
-.about-update-version {
+.about-update-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--t3);
+}
+.about-update-target code {
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  background: var(--bg2);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: var(--text-xs);
+  font-size: .7rem;
 }
 .about-project {
   margin-top: 28px;
