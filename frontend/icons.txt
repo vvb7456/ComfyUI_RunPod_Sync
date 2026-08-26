@@ -1,6 +1,8 @@
 # Material Symbols Outlined — 手动补充清单
-# build-fonts.sh 会自动从源码提取 MsIcon 的 name="..." 和 :name="'...'"
-# 此文件仅用于记录无法自动提取的间接引用 (通过变量/对象传递的图标)
+# build-fonts.sh 会自动从源码提取:
+#   - MsIcon 的 name="..." 和 :name="'...'"
+#   - 任意组件的 icon="..." 和 :icon="'...'" (SectionHeader/AlertBanner/OptionCard 等)
+# 此文件仅用于记录仍无法自动提取的间接引用 (JS 变量/对象/computed/三元表达式传递)
 #
 # 格式: 一行一个图标名
 
@@ -13,39 +15,27 @@ contrast
 gps_fixed
 gps_not_fixed
 
-# 间接 icon prop 传递 (SectionHeader, CollapsibleGroup, AppSidebar, ModeCard 等)
-accessibility_new
-auto_fix_high
-border_style
-cached
-category
-content_paste
+# AppSidebar.vue / SettingsPage tabs — JS 对象 icon 字段传递
 dashboard
 dashboard_customize
-dns
-eco
-hd
-history
-hourglass_top
-image_search
-inventory_2
-layers
-lightbulb
-local_fire_department
-loop
-monitoring
 preview
-psychology
 push_pin
-shuffle
-storage
-sync
-trending_up
-update
 
-# 动态 :icon 绑定
-cloud_off
-cloud_done
+# ParamsCard / ModelTab — 配置数组 icon 字段 (.ts/.vue 间接引用)
+cached
+hd
+face_retouching_natural
+loop
+
+# BaseSelect.vue — multiple 模式的勾选框
+# 注: 提取器按「含 MsIcon 的行」匹配, 多行写法下 :name= 单独成行会被漏掉,
+#     故此处手动补。新增多行 <MsIcon> 时留意同样的坑。
+check_box
+check_box_outline_blank
+
+# VersionCard.vue / ModelsPage — BaseSelect option.icon 间接引用
+verified
+experiment
 
 # ActionBar.vue — 三元表达式 isRunning ? 'stop_circle' : ...
 stop_circle
@@ -58,24 +48,14 @@ book_2
 hard_drive_2
 package_2
 
-# MaskEditorModal — 工具栏图标
+# MaskEditorModal — 工具栏图标 (多行 MsIcon :name 单独成行)
 ink_eraser
 invert_colors
 fit_screen
 
-# FaceDetailerPanel / moduleTabs — .ts 间接引用
-face_retouching_natural
-
-# BaseSelect.vue — multiple 模式的勾选框
-# 注: 提取器按「含 MsIcon 的行」匹配, 多行写法下 :name= 单独成行会被漏掉,
-#     故此处手动补。新增多行 <MsIcon> 时留意同样的坑。
-check_box
-check_box_outline_blank
-
-# VersionCard.vue — BaseSelect option.icon 间接引用
-verified
-experiment
-
-# RefMediaPanel.vue — MiniMax H3 Ref2VA 参考素材面板 (视频 movie / 音频 music_note)
+# RefMediaPanel.vue — MiniMax H3 Ref2VA 参考素材面板 (三元表达式 视频 movie / 音频 music_note)
 movie
 music_note
+
+# PluginCard — op 字段 'update' 间接传递
+update

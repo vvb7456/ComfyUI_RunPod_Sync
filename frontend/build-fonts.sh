@@ -8,8 +8,11 @@
 # 图标名来源 (自动合并去重):
 # 1. 源码中 MsIcon 的 name="xxx" 静态绑定
 # 2. 源码中 :name="... 'xxx' ..." 动态绑定内的字符串字面量
-# 3. MsIcon.vue 中 ICON_COLORS 映射表的 key
-# 4. icons.txt 补充清单 (用于无法自动提取的间接引用)
+# 3. 任意组件的 icon="xxx" 静态 prop (SectionHeader/AlertBanner/OptionCard/EmptyState 等
+#    把 icon prop 转传给 MsIcon 的间接调用, 无需在 icons.txt 手动补)
+# 4. 任意组件的 :icon="... 'xxx' ..." 动态绑定内的字符串字面量
+# 5. MsIcon.vue 中 ICON_COLORS 映射表的 key (兼容旧实现)
+# 6. icons.txt 补充清单 (用于 JS 变量/对象/computed 传递等仍无法自动提取的图标)
 #
 # 输出: frontend/public/fonts/MaterialSymbolsOutlined.woff2
 # ==============================================================================
@@ -33,19 +36,26 @@ STATIC_ICONS=$(grep -rh --include='*.vue' 'MsIcon' "$SRC_DIR" 2>/dev/null | grep
 # 1b. MsIcon 动态绑定: :name="... 'icon_name' ..." 中的单引号字符串
 DYNAMIC_ICONS=$(grep -rh --include='*.vue' 'MsIcon' "$SRC_DIR" 2>/dev/null | grep -oP ":name=\"[^\"]*'" | grep -oP "'[a-z_]+'" | tr -d "'" || true)
 
-# 1c. ICON_COLORS 映射表中的 key (匹配 'icon_name': 模式)
+# 1c. 任意组件 icon="xxx" 静态 prop (SectionHeader/AlertBanner/OptionCard/EmptyState 等
+#      间接把 icon prop 转传给 MsIcon 的调用点; 扫描所有 .vue, 不限 MsIcon)
+ICON_PROP_STATIC=$(grep -rh --include='*.vue' 'icon="[a-z_0-9]' "$SRC_DIR" 2>/dev/null | grep -oP 'icon="[a-z_0-9]+"' | grep -oP '(?<=icon=")[a-z_0-9]+' || true)
+
+# 1d. 任意组件 :icon="... 'icon_name' ..." 动态绑定内的单引号字符串
+ICON_PROP_DYNAMIC=$(grep -rh --include='*.vue' ":icon=\"[^\"]*'" "$SRC_DIR" 2>/dev/null | grep -oP ":icon=\"[^\"]*'" | grep -oP "'[a-z_0-9]+'" | tr -d "'" || true)
+
+# 1e. ICON_COLORS 映射表中的 key (匹配 'icon_name': 模式; 兼容旧实现)
 COLORS_ICONS=$(grep -oP "'[a-z][a-z_0-9]+'\s*:" "$SRC_DIR/components/ui/MsIcon.vue" 2>/dev/null | grep -oP "'[a-z][a-z_0-9]+'" | tr -d "'" || true)
 
-# 1d. icons.txt 补充清单 (间接引用无法自动提取的图标)
+# 1f. icons.txt 补充清单 (JS 变量/对象/computed 传递等无法自动提取的图标)
 MANUAL_ICONS=""
 if [ -f "$ICONS_FILE" ]; then
     MANUAL_ICONS=$(grep -v '^#' "$ICONS_FILE" | grep -v '^\s*$' | tr -d '\r')
 fi
 
 # 合并去重
-ALL_ICONS=$(echo -e "${STATIC_ICONS}\n${DYNAMIC_ICONS}\n${COLORS_ICONS}\n${MANUAL_ICONS}" | grep -v '^\s*$' | sort -u)
+ALL_ICONS=$(echo -e "${STATIC_ICONS}\n${DYNAMIC_ICONS}\n${ICON_PROP_STATIC}\n${ICON_PROP_DYNAMIC}\n${COLORS_ICONS}\n${MANUAL_ICONS}" | grep -v '^\s*$' | sort -u)
 
-AUTO_COUNT=$(echo -e "${STATIC_ICONS}\n${DYNAMIC_ICONS}\n${COLORS_ICONS}" | grep -v '^\s*$' | sort -u | wc -l)
+AUTO_COUNT=$(echo -e "${STATIC_ICONS}\n${DYNAMIC_ICONS}\n${ICON_PROP_STATIC}\n${ICON_PROP_DYNAMIC}\n${COLORS_ICONS}" | grep -v '^\s*$' | sort -u | wc -l)
 TOTAL_COUNT=$(echo "$ALL_ICONS" | wc -l)
 echo "  Auto-extracted: ${AUTO_COUNT}, Manual (icons.txt): +$(echo "$MANUAL_ICONS" | grep -v '^\s*$' | wc -l), Total unique: ${TOTAL_COUNT}"
 
