@@ -173,7 +173,7 @@ def submit_generation(data: dict) -> tuple[dict, int]:
         opts = {}
 
     # 不同模型类型校验不同字段
-    if model_type == "sdxl":
+    if model_type in ("sdxl", "sd15"):
         checkpoint = data.get("checkpoint", "").strip()
         if not checkpoint:
             return {"error_key": "generate.err.no_checkpoint"}, 400
@@ -226,7 +226,7 @@ def submit_generation(data: dict) -> tuple[dict, int]:
             data["checkpoint"] = checkpoint
             # clip_skip / vae 覆盖接收+钳制是死代码:
             # _build_split_arch_workflow 的 checkpoint 分支 vae_ref = ckpt, 不读 params["vae"];
-            # 全项目唯一消费 clip_skip 的是 build_sdxl_workflow (sdxl 分支单独校验)。
+            # 全项目唯一消费 clip_skip 的是 build_sdxl_workflow (sdxl/sd15 分支单独校验)。
             # DiT 整合包选中时前端不再发这俩字段。
         else:
             unet = data.get("unet", "").strip()

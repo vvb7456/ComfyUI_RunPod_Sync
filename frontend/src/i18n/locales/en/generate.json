@@ -21,6 +21,7 @@
   },
   "tabs": {
     "sdxl": "SDXL",
+    "sd15": "SD 1.5",
     "anima": "Anima",
     "flux": "Flux",
     "krea2": "Krea 2",
@@ -74,6 +75,13 @@
           "order": "Quality/style → subject/count → appearance/clothing → pose/action → composition/camera → lighting/background.",
           "special": "masterpiece, best quality, 1girl, red dress, standing in a garden, soft sunlight, medium shot",
           "negative": "Use the negative box for low quality, anatomy errors, text/watermarks and other exclusions; keep the same comma-tag format."
+        },
+        "sd15": {
+          "title": "SD 1.5 (tag style)",
+          "format": "Use English tags or short phrases separated by commas; use (tag:1.1) for light emphasis when needed.",
+          "order": "Quality → subject/count → appearance/clothing → pose/action → composition/camera → setting and lighting.",
+          "special": "masterpiece, best quality, 1girl, solo, red dress, standing in a garden, soft sunlight, detailed background",
+          "negative": "Common exclusions include worst quality, low quality, blurry, bad anatomy, bad hands and watermark."
         },
         "anima": {
           "title": "Anima (Danbooru/Gelbooru tags)",
@@ -692,6 +700,7 @@
   "model": {},
   "placeholders": {
     "positive_sdxl": "masterpiece, best quality, 1girl, solo, long hair, white dress, looking at viewer, outdoors, blue sky",
+    "positive_sd15": "masterpiece, best quality, 1girl, solo, long hair, white dress, looking at viewer, outdoors, blue sky",
     "positive_anima": "masterpiece, best quality, score_7, safe, 1girl, solo, character, series, {'@'}artist, long hair, school uniform, standing outdoors",
     "positive_krea2": "A cinematic product photo of a red ceramic teapot on a wooden table, soft morning window light, shallow depth of field",
     "positive_zimage": "A quiet red fox stands on a mossy rock in a misty forest at dawn, backlit, cinematic composition, detailed fur",
@@ -709,6 +718,7 @@
     "positive_minimax_h3": "integrated_multimodal_description: [Shot 1] ...\noverall_soundscape: ...\nnon_diegetic_music: N/A",
     "positive_minimax_h3_ref": "subject_definitions: <Subject 1> ...\nsummary: [reference generation] ...\nretention_analysis: <Subject 1>: fully_preserved - ...\ndetailed_description: [Shot 1] ...\noverall_soundscape: ...\nnon_diegetic_music: N/A",
     "negative_sdxl": "worst quality, low quality, blurry, bad anatomy, bad hands, extra fingers, watermark, text",
+    "negative_sd15": "worst quality, low quality, blurry, bad anatomy, bad hands, extra fingers, watermark, text",
     "negative_anima": "worst quality, low quality, score_1, score_2, score_3, artist name, blurry, jpeg artifacts, chromatic aberration",
     "negative_chroma": "blurry, malformed details, text, watermark, compression artifacts",
     "negative_flux2klein4b": "Usually leave empty; only add short exclusions in a tested workflow",

@@ -103,6 +103,7 @@ function onClearImage() {
 /** 静态模型与 LLM prompt 预设一一对应；视频双模式条目在下方动态分流。 */
 const STATIC_LLM_TARGETS: Record<string, string> = {
   sdxl: 'sdxl',
+  sd15: 'sd15',
   anima: 'anima',
   krea2: 'krea2',
   zimage: 'zimage',

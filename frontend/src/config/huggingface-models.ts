@@ -16,8 +16,8 @@
  * FLUX.2 klein 门控仓库, 共 225 条。
  *
  * 可用 ID (下一个):
- *   模型 ID: -100281
- *   版本 ID: -10000381
+ *   模型 ID: -100284
+ *   版本 ID: -10000384
  */
 
 import type { CivitaiHit, CivitaiImage } from '@/composables/useCivitaiSearch'
@@ -110,7 +110,7 @@ const sd15PrunedVersion: HuggingFaceVersion = {
   id: -10000102,
   name: '1.5',
   baseModel: 'SD 1.5',
-  images: [],
+  images: [{ url: 'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/archived/image2image-1.webp', type: 'image' }],
   trainedWords: [],
   hashes: {
     SHA256: 'e9476a13728cd75d8279f6ec8bad753a66a1957ca375a1464dc63b37db6e3916',
@@ -132,7 +132,7 @@ const sd15PrunedModel: HuggingFaceModel = {
     downloadCount: 8183827,
     thumbsUpCount: 112,
   },
-  images: [],
+  images: [{ url: 'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/archived/image2image-1.webp', type: 'image' }],
   user: { username: 'Comfy-Org' },
   sourceUrl: 'https://huggingface.co/Comfy-Org/stable-diffusion-v1-5-archive',
   description: 'SD1.5 官方归档 fp16 剪枝整合包, 基础文生图',
@@ -461,6 +461,111 @@ const sd35DepthCnModel: HuggingFaceModel = {
   versions: [sd35DepthCnVersion],
 }
 
+// SD1.5 ControlNet v1.1 深度图 (ComfyUI 可直接加载的 safetensors/FP16 转换版)
+const sd15DepthCnVersion: HuggingFaceVersion = {
+  id: -10000381,
+  name: 'depth-fp16',
+  baseModel: 'SD 1.5',
+  images: [{ url: 'https://huggingface.co/lllyasviel/control_v11f1p_sd15_depth/resolve/539f99181d33db39cf1af2e517cd8056785f0a87/images/image_out.png', type: 'image' }],
+  trainedWords: [],
+  hashes: {
+    SHA256: '1c4a79aa52fb63f607cb9ff479ea5aa1923b6ceb21267bd14b69bd05d7b617be',
+  },
+  file: {
+    url: 'https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_v11f1p_sd15_depth_fp16.safetensors',
+    filename: 'control_v11f1p_sd15_depth_fp16.safetensors',
+    modelType: 'controlnet',
+    architecture: 'sd15',
+    sizeBytes: 722601100,
+    sha256: '1c4a79aa52fb63f607cb9ff479ea5aa1923b6ceb21267bd14b69bd05d7b617be',
+  },
+}
+const sd15DepthCnModel: HuggingFaceModel = {
+  id: -100281,
+  name: 'SD 1.5 ControlNet v1.1 Depth FP16',
+  type: 'ControlNet',
+  metrics: {
+    downloadCount: 0,
+    thumbsUpCount: 527,
+  },
+  images: [{ url: 'https://huggingface.co/lllyasviel/control_v11f1p_sd15_depth/resolve/539f99181d33db39cf1af2e517cd8056785f0a87/images/image_out.png', type: 'image' }],
+  user: { username: 'comfyanonymous' },
+  sourceUrl: 'https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors',
+  description: 'SD1.5 专用 Depth ControlNet v1.1，ComfyUI 可直接加载的 safetensors/FP16 转换版',
+  version: sd15DepthCnVersion,
+  versions: [sd15DepthCnVersion],
+}
+
+// SD1.5 ControlNet v1.1 Canny 边缘 (ComfyUI 可直接加载的 safetensors/FP16 转换版)
+const sd15CannyCnVersion: HuggingFaceVersion = {
+  id: -10000382,
+  name: 'canny-fp16',
+  baseModel: 'SD 1.5',
+  images: [{ url: 'https://huggingface.co/lllyasviel/control_v11p_sd15_canny/resolve/115a470d547982438f70198e353a921996e2e819/images/image_out.png', type: 'image' }],
+  trainedWords: [],
+  hashes: {
+    SHA256: '8932b66e15aae835b3490dbf989f56c253104cee08a88bf21283762f557c9f10',
+  },
+  file: {
+    url: 'https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_v11p_sd15_canny_fp16.safetensors',
+    filename: 'control_v11p_sd15_canny_fp16.safetensors',
+    modelType: 'controlnet',
+    architecture: 'sd15',
+    sizeBytes: 722601100,
+    sha256: '8932b66e15aae835b3490dbf989f56c253104cee08a88bf21283762f557c9f10',
+  },
+}
+const sd15CannyCnModel: HuggingFaceModel = {
+  id: -100282,
+  name: 'SD 1.5 ControlNet v1.1 Canny FP16',
+  type: 'ControlNet',
+  metrics: {
+    downloadCount: 0,
+    thumbsUpCount: 527,
+  },
+  images: [{ url: 'https://huggingface.co/lllyasviel/control_v11p_sd15_canny/resolve/115a470d547982438f70198e353a921996e2e819/images/image_out.png', type: 'image' }],
+  user: { username: 'comfyanonymous' },
+  sourceUrl: 'https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors',
+  description: 'SD1.5 专用 Canny ControlNet v1.1，ComfyUI 可直接加载的 safetensors/FP16 转换版',
+  version: sd15CannyCnVersion,
+  versions: [sd15CannyCnVersion],
+}
+
+// SD1.5 ControlNet v1.1 OpenPose (ComfyUI 可直接加载的 safetensors/FP16 转换版)
+const sd15PoseCnVersion: HuggingFaceVersion = {
+  id: -10000383,
+  name: 'openpose-fp16',
+  baseModel: 'SD 1.5',
+  images: [{ url: 'https://huggingface.co/lllyasviel/control_v11p_sd15_openpose/resolve/9ae9f970358db89e211b87c915f9535c6686d5ba/images/image_out.png', type: 'image' }],
+  trainedWords: [],
+  hashes: {
+    SHA256: '4003c1da17b0e4ba444e02140e1c0d83bb24b79e4dcfd613c3a554d38f0f89c7',
+  },
+  file: {
+    url: 'https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/main/control_v11p_sd15_openpose_fp16.safetensors',
+    filename: 'control_v11p_sd15_openpose_fp16.safetensors',
+    modelType: 'controlnet',
+    architecture: 'sd15',
+    sizeBytes: 722601100,
+    sha256: '4003c1da17b0e4ba444e02140e1c0d83bb24b79e4dcfd613c3a554d38f0f89c7',
+  },
+}
+const sd15PoseCnModel: HuggingFaceModel = {
+  id: -100283,
+  name: 'SD 1.5 ControlNet v1.1 OpenPose FP16',
+  type: 'ControlNet',
+  metrics: {
+    downloadCount: 0,
+    thumbsUpCount: 527,
+  },
+  images: [{ url: 'https://huggingface.co/lllyasviel/control_v11p_sd15_openpose/resolve/9ae9f970358db89e211b87c915f9535c6686d5ba/images/image_out.png', type: 'image' }],
+  user: { username: 'comfyanonymous' },
+  sourceUrl: 'https://huggingface.co/comfyanonymous/ControlNet-v1-1_fp16_safetensors',
+  description: 'SD1.5 专用 OpenPose ControlNet v1.1，ComfyUI 可直接加载的 safetensors/FP16 转换版',
+  version: sd15PoseCnVersion,
+  versions: [sd15PoseCnVersion],
+}
+
 // ── vae ──────────────────────────────────────────────────────────────────────
 
 // Wan 2.1 官方 VAE (bf16), Wan 2.1/2.2 14B 视频生成通用
@@ -538,7 +643,7 @@ const sdVaeFtMseVersion: HuggingFaceVersion = {
   id: -10000114,
   name: '840000',
   baseModel: 'SD 1.5',
-  images: [{ url: 'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/flux_depth_lora_example-1.webp', type: 'image' }],
+  images: [{ url: 'https://huggingface.co/stabilityai/stable-diffusion-decoder-finetune/resolve/e21db4dc8d4f2675c2ffef479c4c893e83bceada/eval/ae-decoder-tuning-reconstructions/merged/00037_merged.png', type: 'image' }],
   trainedWords: [],
   hashes: {
     SHA256: '735e4c3a447a3255760d7f86845f09f937809baa529c17370d83e4c3758f3c75',
@@ -560,7 +665,7 @@ const sdVaeFtMseModel: HuggingFaceModel = {
     downloadCount: 0,
     thumbsUpCount: 1420,
   },
-  images: [{ url: 'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/flux_depth_lora_example-1.webp', type: 'image' }],
+  images: [{ url: 'https://huggingface.co/stabilityai/stable-diffusion-decoder-finetune/resolve/e21db4dc8d4f2675c2ffef479c4c893e83bceada/eval/ae-decoder-tuning-reconstructions/merged/00037_merged.png', type: 'image' }],
   user: { username: 'stabilityai' },
   sourceUrl: 'https://huggingface.co/stabilityai/sd-vae-ft-mse-original',
   description: 'SD 1.5/SDXL 通用微调 VAE (ft-MSE, 人物/细节重建更佳)',
@@ -754,7 +859,7 @@ const dreamShaper8PrunedVersion: HuggingFaceVersion = {
   id: -10000120,
   name: 'v1.0',
   baseModel: 'SD 1.5',
-  images: [],
+  images: [{ url: 'https://huggingface.co/Lykon/DreamShaper/resolve/main/1.png', type: 'image' }],
   trainedWords: [],
   hashes: {
     SHA256: '879db523c30d3b9017143d56705015e15a2cb5628762c11d086fed9538abd7fd',
@@ -777,7 +882,7 @@ const dreamShaper8PrunedModel: HuggingFaceModel = {
     downloadCount: 219519,
     thumbsUpCount: 1014,
   },
-  images: [],
+  images: [{ url: 'https://huggingface.co/Lykon/DreamShaper/resolve/main/1.png', type: 'image' }],
   user: { username: 'Lykon' },
   sourceUrl: 'https://huggingface.co/Lykon/DreamShaper',
   description: 'DreamShaper 8, 经典 SD1.5 通用文生图整合包 (剪枝版)',
@@ -8866,6 +8971,9 @@ export const HUGGINGFACE_MODELS: HuggingFaceModel[] = [
   wan22I2vLightningLoraModel,
   sd35CannyCnModel,
   sd35DepthCnModel,
+  sd15DepthCnModel,
+  sd15CannyCnModel,
+  sd15PoseCnModel,
   wan21VaeModel,
   fluxAeVaeModel,
   sdVaeFtMseModel,

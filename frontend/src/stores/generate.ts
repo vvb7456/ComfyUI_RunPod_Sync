@@ -216,6 +216,9 @@ export function createDefaultState(config: ModelTypeConfig): ModelState {
     }
   })
 
+  const resolution = config.resolutions[0]?.value || '1024x1024'
+  const [width, height] = resolution.split('x').map(Number)
+
   return {
     positive: '',
     negative: '',
@@ -230,9 +233,9 @@ export function createDefaultState(config: ModelTypeConfig): ModelState {
     vae: '',
     audioVae: '',
     loras: [],
-    resolution: config.resolutions[0]?.value || '1024x1024',
-    width: 1024,
-    height: 1024,
+    resolution,
+    width: width || 1024,
+    height: height || 1024,
     steps: config.defaults.steps,
     cfg: config.defaults.cfg,
     sampler: config.defaults.sampler,

@@ -113,6 +113,34 @@ _SDXL_SYSTEM_PROMPT = (
 SDXL_SYSTEM_PROMPT = _SDXL_SYSTEM_PROMPT
 
 
+_SD15_SYSTEM_PROMPT = (
+    _prompt_header(
+        "Stable Diffusion 1.5 (SD1.5)",
+        "把用户的自然语言改写为适用于 SD1.5 的 Automatic1111/ComfyUI 标签提示词，并生成与画面相关的负面提示词",
+    )
+    + _FIDELITY_RULES
+    + _TAG_RULES
+    + r"""
+### SD1.5 提示词习惯
+- SD1.5 使用传统的 CLIP 文本编码器和较短的英文逗号分隔 tags/短语；把最重要的主体、
+  风格和构图放在前面，避免把提示词写成 Flux 等新式 DiT 模型的长篇自然语言指令。
+- 可以使用 SD1.5/AUTOMATIC1111 社区常见的 `masterpiece`, `best quality`, `highly detailed`
+  等质量词，但只在适合用户目标时使用，不要机械添加，也不要使用 Pony、Illustrious
+  或 Anima 专属的 score/year 标签。
+- 对主体、服饰、动作和构图使用明确、简短、可观察的词；需要强调时少量使用
+  `(tag:1.1)` 权重，不要给整句提示词逐词加权。
+### 负面提示词
+`negative` 使用独立的英文逗号分隔负面提示词，优先描述低质量、解剖错误、构图伪影、
+  文字/水印以及用户明确排除的内容。SD1.5 常见的 `low quality`, `bad anatomy`,
+  `worst quality` 等词只有在确实有帮助时才加入；不要把正向主体复制到 negative。
+"""
+    + _OUTPUT_RULES
+)
+
+# Public constant, consistent with the existing SDXL prompt export.
+SD15_SYSTEM_PROMPT = _SD15_SYSTEM_PROMPT
+
+
 _ANIMA_SYSTEM_PROMPT = (
     _prompt_header(
         "Anima (Qwen text encoder)",
@@ -529,6 +557,7 @@ FLUX_VISION_SYSTEM_PROMPT = _with_vision(FLUX_SYSTEM_PROMPT, "FLUX")
 
 _BASE_ENTRIES = {
     "sdxl": _entry(SDXL_SYSTEM_PROMPT, "SDXL — Danbooru/A1111 标签格式", negative=True, vision_model="SDXL"),
+    "sd15": _entry(SD15_SYSTEM_PROMPT, "SD 1.5 — A1111/ComfyUI 标签格式", negative=True, vision_model="Stable Diffusion 1.5"),
     "anima": _entry(_ANIMA_SYSTEM_PROMPT, "Anima — tags/短语格式", negative=True, vision_model="Anima"),
     "krea2": _entry(_KREA2_SYSTEM_PROMPT, "Krea 2 — 自然语言格式", negative=False, vision_model="Krea 2"),
     "zimage": _entry(_ZIMAGE_SYSTEM_PROMPT, "Z-Image — 中英自然语言格式", negative=False, vision_model="Z-Image"),

@@ -23,13 +23,13 @@ export interface ModelTypeConfig {
   /** DualCLIPLoader (flux1): true 时 AdvancedSettings 显示第二个 CLIP select, submit 带 clip2 */
   dualClip?: boolean
   /** Clip Skip + VAE 覆盖行支持: true 时 AdvancedSettings 显示该行。
-   *  判据是文本编码器属 CLIP 家族 — 仅 sdxl/pony/illustrious/noobai; 与打包形态无关
+   *  判据是文本编码器属 CLIP 家族 — 仅 sd15/sdxl/pony/illustrious/noobai; 与打包形态无关
    *  (DiT 架构选中 checkpoints/ 整合包时不再显示, 避免调了无效)。 */
   clipSkipSupport?: boolean
   /** ControlNet 生态是否可用 (false 时 pose/canny/depth 模块 disabled) */
   controlNetEnabled: boolean
-  /** ControlNet 分支: 'sdxl' (sdxl/pony) | 'ilnoob' (illustrious/noobai) | 'flux' (flux1); 未设 = CN 面板走通用过滤 */
-  cnBranch?: 'sdxl' | 'ilnoob' | 'flux'
+  /** ControlNet 分支: 'sdxl' (sdxl/pony) | 'ilnoob' (illustrious/noobai) | 'flux' (flux1) | 'sd15'; 未设 = CN 面板走通用过滤 */
+  cnBranch?: 'sdxl' | 'ilnoob' | 'flux' | 'sd15'
   /** 按模式的 ControlNet 默认参数 (start 恒 0 不需字段); 有该 key 的 mode 新建态取此值 */
   cnDefaults?: Record<string, { strength: number; end: number }>
   resolutions: { label: string; value: string }[]
@@ -170,6 +170,34 @@ export const MODEL_TYPES: Record<string, ModelTypeConfig> = {
       { label: '640×1536 (9:21)', value: '640x1536' },
     ],
     defaults: { steps: 20, cfg: 7.0, sampler: 'euler', scheduler: 'normal' },
+    hasNegativePrompt: true,
+    promptStyle: 'tags',
+    modules: ['lora', 'i2i', 'controlnet', 'upscale', 'hires', 'face'],
+  },
+  sd15: {
+    key: 'sd15',
+    label: 'SD 1.5',
+    archFilter: ['sd15'],
+    supportedPackaging: ['checkpoint'],
+    controlNetEnabled: true,
+    cnBranch: 'sd15',
+    clipSkipSupport: true,
+    // Stable Diffusion 系列统一沿用现有 Stability AI 官方标记，保持模型入口视觉一致。
+    logo: sdxlLogo,
+    pickerArch: 'sd15',
+    releasedAt: '2022-10',
+    mediaType: 'image',
+    resolutions: [
+      { label: '512×512 (1:1)', value: '512x512' },
+      { label: '768×512 (3:2)', value: '768x512' },
+      { label: '512×768 (2:3)', value: '512x768' },
+      { label: '896×512 (16:9)', value: '896x512' },
+      { label: '512×896 (9:16)', value: '512x896' },
+      { label: '640×512 (5:4)', value: '640x512' },
+      { label: '512×640 (4:5)', value: '512x640' },
+    ],
+    // SD 1.5 常用采样默认: 20 步 / CFG 7 / Euler a / normal。
+    defaults: { steps: 20, cfg: 7.0, sampler: 'euler_ancestral', scheduler: 'normal' },
     hasNegativePrompt: true,
     promptStyle: 'tags',
     modules: ['lora', 'i2i', 'controlnet', 'upscale', 'hires', 'face'],

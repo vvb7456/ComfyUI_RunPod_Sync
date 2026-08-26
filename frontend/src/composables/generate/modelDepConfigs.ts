@@ -73,6 +73,30 @@ const CN_MODELS: Record<string, DepRow> = {
     required: true,
     files: [hfFile(-10000365)],
   },
+  sd15_pose_dedicated: {
+    id: 'sd15-controlnet-openpose',
+    label: 'SD1.5 OpenPose ControlNet',
+    hint: 'SD1.5 专用',
+    bytes: hfBytes(-10000383),
+    required: true,
+    files: [hfFile(-10000383)],
+  },
+  sd15_canny_dedicated: {
+    id: 'sd15-controlnet-canny',
+    label: 'SD1.5 Canny ControlNet',
+    hint: 'SD1.5 专用',
+    bytes: hfBytes(-10000382),
+    required: true,
+    files: [hfFile(-10000382)],
+  },
+  sd15_depth_dedicated: {
+    id: 'sd15-controlnet-depth',
+    label: 'SD1.5 Depth ControlNet',
+    hint: 'SD1.5 专用',
+    bytes: hfBytes(-10000381),
+    required: true,
+    files: [hfFile(-10000381)],
+  },
   dwpose: {
     id: 'dwpose',
     label: 'DWPose',
@@ -198,8 +222,9 @@ export const FACE_DEP_GROUP: DepGroup = {
 // pose:   sdxl → [union, dwpose];            ilnoob → [pose_dedicated, dwpose]
 // canny:  sdxl → [union];                    ilnoob → [canny_dedicated]
 // depth:  sdxl → [union, depth_anything_v2];  ilnoob → [depth_dedicated, depth_anything_v2]
+//         sd15 → [sd15 专用模型 (+ 对应检测器)]
 
-export type CnBranch = 'sdxl' | 'ilnoob' | 'flux'
+export type CnBranch = 'sdxl' | 'ilnoob' | 'flux' | 'sd15'
 
 const _CN_BRANCH_GROUPS: Record<string, Record<CnBranch, DepGroup>> = {
   pose: {
@@ -215,6 +240,10 @@ const _CN_BRANCH_GROUPS: Record<string, Record<CnBranch, DepGroup>> = {
       title: 'generate.controlnet.need_download_pose',
       rows: [CN_MODELS.flux_union, CN_MODELS.dwpose],
     },
+    sd15: {
+      title: 'generate.controlnet.need_download_pose',
+      rows: [CN_MODELS.sd15_pose_dedicated, CN_MODELS.dwpose],
+    },
   },
   canny: {
     sdxl: {
@@ -229,6 +258,10 @@ const _CN_BRANCH_GROUPS: Record<string, Record<CnBranch, DepGroup>> = {
       title: 'generate.controlnet.need_download_canny',
       rows: [CN_MODELS.flux_union],
     },
+    sd15: {
+      title: 'generate.controlnet.need_download_canny',
+      rows: [CN_MODELS.sd15_canny_dedicated],
+    },
   },
   depth: {
     sdxl: {
@@ -242,6 +275,10 @@ const _CN_BRANCH_GROUPS: Record<string, Record<CnBranch, DepGroup>> = {
     flux: {
       title: 'generate.controlnet.need_download_depth',
       rows: [CN_MODELS.flux_union, CN_MODELS.depth_anything_v2],
+    },
+    sd15: {
+      title: 'generate.controlnet.need_download_depth',
+      rows: [CN_MODELS.sd15_depth_dedicated, CN_MODELS.depth_anything_v2],
     },
   },
 }
@@ -258,7 +295,8 @@ export function getCnDepGroup(cnType: string, branch: CnBranch | undefined): Dep
 
 /**
  * CN_FILE_BRANCH — CN 模型文件名 → 所属 branch 映射, 供 CN 面板下拉过滤。
- * 仅含 "已知" CN 主模型 (union → sdxl; pose/canny/depth_dedicated → ilnoob)。
+ * 仅含 "已知" CN 主模型 (union → sdxl; pose/canny/depth_dedicated → ilnoob;
+ * sd15 专用模型 → sd15)。
  * 检测器 (dwpose / depth_anything_v2) 不在此表 — 它们是辅助节点, 不参与 branch 分家。
  * 用户手动安装的未知文件也不在此表 → 面板走"未知"分支 (列出但排后)。
  */
@@ -270,6 +308,10 @@ export const CN_FILE_BRANCH: Record<string, CnBranch> = (() => {
   for (const f of CN_MODELS.pose_dedicated.files) map[f.filename] = 'ilnoob'
   for (const f of CN_MODELS.canny_dedicated.files) map[f.filename] = 'ilnoob'
   for (const f of CN_MODELS.depth_dedicated.files) map[f.filename] = 'ilnoob'
+  // sd15 branch: ControlNet v1.1 专用模型
+  for (const f of CN_MODELS.sd15_pose_dedicated.files) map[f.filename] = 'sd15'
+  for (const f of CN_MODELS.sd15_canny_dedicated.files) map[f.filename] = 'sd15'
+  for (const f of CN_MODELS.sd15_depth_dedicated.files) map[f.filename] = 'sd15'
   // flux branch: flux_union (Union Pro 2.0 FP8)
   for (const f of CN_MODELS.flux_union.files) map[f.filename] = 'flux'
   return map

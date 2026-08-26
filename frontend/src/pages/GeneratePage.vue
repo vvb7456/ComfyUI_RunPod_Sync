@@ -203,8 +203,8 @@ const menuItems = computed<DropdownMenuItem[]>(() => {
   }
 
 
-  // ── 排序 (用户指定规则): 可展开的分组在上、叶子在下; 各自按发布时间升序 ──
-  // 分组的排序键 = 组内最早的发布时间。
+  // ── 排序 (用户指定规则): 分组与叶子混排, 按发布时间升序 ──
+  // 分组的排序键 = 组内最早的发布时间, 因此跨分组/叶子比较时使用同一时间轴。
   const relOf = (key: string) => MODEL_TYPES[key]?.releasedAt ?? '9999-99'
   const keyOf = (it: DropdownMenuItem) =>
     it.children?.length
@@ -215,12 +215,7 @@ const menuItems = computed<DropdownMenuItem[]>(() => {
   for (const it of items) {
     if (it.children?.length) it.children.sort((a, b) => relOf(a.key).localeCompare(relOf(b.key)))
   }
-  items.sort((a, b) => {
-    const ga = a.children?.length ? 0 : 1
-    const gb = b.children?.length ? 0 : 1
-    if (ga !== gb) return ga - gb
-    return keyOf(a).localeCompare(keyOf(b))
-  })
+  items.sort((a, b) => keyOf(a).localeCompare(keyOf(b)))
 
   return items
 })

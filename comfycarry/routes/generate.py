@@ -10,6 +10,7 @@ ComfyCarry — Generate 路由
 
 支持的 model_type:
   sdxl   — SDXL 基础 T2I + 可选 LoRA  (Phase 1)
+  sd15   — Stable Diffusion 1.5 基础 T2I + 可选 LoRA
   (flux, zimage, ... — Phase 2+)
 """
 
@@ -679,6 +680,9 @@ def api_generate_input_image_preview():
 # 支持的模型类型 → 对应工作流构建函数
 _BUILDERS = {
     "sdxl": build_sdxl_workflow,
+    # SD 1.5 与 SDXL 共用传统 CheckpointLoaderSimple 工作流，参数校验在
+    # generate_service 中与 sdxl 共用；保留独立 model_type 便于前端默认值与模型筛选。
+    "sd15": build_sdxl_workflow,
     "anima": build_anima_workflow,    # 分离式架构: UNet + 单 CLIP + VAE
     "krea2": build_krea2_workflow,    # 分离式架构: UNet + 单 CLIP + VAE
     "zimage": build_zimage_workflow,  # 分离式架构: UNet + 单 CLIP (lumina2) + VAE + ModelSamplingAuraFlow
@@ -716,7 +720,7 @@ def api_generate_submit():
     提交生成请求。
 
     请求体 (JSON):
-        model_type      (str)   — 工作流类型，目前支持 "sdxl"
+        model_type      (str)   — 工作流类型，目前支持 "sdxl" / "sd15"
         checkpoint      (str)   — Checkpoint 文件名
         positive_prompt (str)   — 正向提示词 (必填)
         negative_prompt (str)   — 负向提示词，可为空

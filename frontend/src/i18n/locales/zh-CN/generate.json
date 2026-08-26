@@ -21,6 +21,7 @@
   },
   "tabs": {
     "sdxl": "SDXL",
+    "sd15": "SD 1.5",
     "anima": "Anima",
     "flux": "Flux",
     "krea2": "Krea 2",
@@ -74,6 +75,13 @@
           "order": "质量与风格 → 主体/人数 → 外观服饰 → 姿态动作 → 构图镜头 → 光线背景。",
           "special": "masterpiece, best quality, 1girl, red dress, standing in a garden, soft sunlight, medium shot",
           "negative": "负面框可排除低质、解剖错误、文字/水印等；与正面同为逗号标签。"
+        },
+        "sd15": {
+          "title": "SD 1.5（标签式）",
+          "format": "使用英文标签或短语，用英文逗号分隔；可用 (tag:1.1) 轻微调整重点。",
+          "order": "质量 → 主体/人数 → 外观服饰 → 姿态动作 → 构图镜头 → 场景与光线。",
+          "special": "masterpiece, best quality, 1girl, solo, red dress, standing in a garden, soft sunlight, detailed background",
+          "negative": "常用 worst quality, low quality, blurry, bad anatomy, bad hands, watermark 等排除低质和错误。"
         },
         "anima": {
           "title": "Anima（Danbooru/Gelbooru 标签）",
@@ -692,6 +700,7 @@
   "model": {},
   "placeholders": {
     "positive_sdxl": "masterpiece, best quality, 1girl, solo, long hair, white dress, looking at viewer, outdoors, blue sky",
+    "positive_sd15": "masterpiece, best quality, 1girl, solo, long hair, white dress, looking at viewer, outdoors, blue sky",
     "positive_anima": "masterpiece, best quality, score_7, safe, 1girl, solo, character, series, {'@'}artist, long hair, school uniform, standing outdoors",
     "positive_krea2": "A cinematic product photo of a red ceramic teapot on a wooden table, soft morning window light, shallow depth of field",
     "positive_zimage": "A quiet red fox stands on a mossy rock in a misty forest at dawn, backlit, cinematic composition, detailed fur",
@@ -709,6 +718,7 @@
     "positive_minimax_h3": "integrated_multimodal_description: [Shot 1] ...\noverall_soundscape: ...\nnon_diegetic_music: N/A",
     "positive_minimax_h3_ref": "subject_definitions: <Subject 1> ...\nsummary: [reference generation] ...\nretention_analysis: <Subject 1>: fully_preserved - ...\ndetailed_description: [Shot 1] ...\noverall_soundscape: ...\nnon_diegetic_music: N/A",
     "negative_sdxl": "worst quality, low quality, blurry, bad anatomy, bad hands, extra fingers, watermark, text",
+    "negative_sd15": "worst quality, low quality, blurry, bad anatomy, bad hands, extra fingers, watermark, text",
     "negative_anima": "worst quality, low quality, score_1, score_2, score_3, artist name, blurry, jpeg artifacts, chromatic aberration",
     "negative_chroma": "blurry, malformed details, text, watermark, compression artifacts",
     "negative_flux2klein4b": "通常留空；仅在已验证的工作流中写简短排除词",
