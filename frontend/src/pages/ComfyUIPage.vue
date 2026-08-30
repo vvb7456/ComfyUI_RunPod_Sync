@@ -12,7 +12,6 @@ import MsIcon from '@/components/ui/MsIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import TabSwitcher from '@/components/ui/TabSwitcher.vue'
 import UnsavedBanner from '@/components/ui/UnsavedBanner.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import ConsoleSection from '@/components/comfyui/ConsoleSection.vue'
 import ParamsCard from '@/components/comfyui/ParamsCard.vue'
 import PluginsTab from '@/components/comfyui/PluginsTab.vue'
@@ -36,9 +35,16 @@ const tabs = computed(() => [
 // Status (shared - used in header badge + ConsoleSection)
 const status = ref<ComfyStatus | null>(null)
 
-// 页头「打开 ComfyUI」链接。地址只有隧道配好之后才存在 (后端不提供本地直连兜底:
-// 端口可配、RunPod 又在反代后面), 解析不出来时标题就退回纯文本。
+// 页头「打开 ComfyUI」链接。优先取隧道地址，无隧道时兜底本地直连
+// (端口来自后端 COMFYUI_URL 解析, ComfyUI 离线时地址不可达, 不显示)。
 const comfyUrl = ref('')
+const effectiveComfyUrl = computed(() => {
+  if (!status.value?.online) return ''
+  if (comfyUrl.value) return comfyUrl.value
+  const port = status.value?.port || 8188
+  const host = window.location.hostname || 'localhost'
+  return `http://${host}:${port}`
+})
 
 async function loadComfyUrl() {
   const d = await get<{ urls?: Record<string, string>; public?: { urls?: Record<string, string> } }>(
@@ -158,29 +164,31 @@ async function onTabChange(next: string) {
 </script>
 
 <template>
-  <PageHeader
-    :title="t('comfyui.title')"
-    :service="status ? {
-      status: status.pm2_status === 'online' ? 'running' : 'stopped',
-      label: status.pm2_status === 'online' ? t('comfyui.status.running') : t('comfyui.status.stopped'),
-    } : undefined"
-    :launch="comfyUrl && status?.online
-      ? { href: comfyUrl, label: t('comfyui.open') }
-      : undefined"
-  >
-    <template #actions>
-      <span v-if="status">
-        <template v-if="status.online">
-          <BaseButton @click="comfyStop"><MsIcon name="stop" /> {{ t('common.btn.stop') }}</BaseButton>
-          <BaseButton @click="comfyRestart"><MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}</BaseButton>
-        </template>
-        <BaseButton v-else @click="comfyStart"><MsIcon name="play_arrow" /> {{ t('common.btn.start') }}</BaseButton>
-      </span>
-    </template>
-  </PageHeader>
-
   <div class="page-body">
-    <TabSwitcher :model-value="activeTab" :tabs="tabs" @update:model-value="onTabChange" />
+    <TabSwitcher :title="t('comfyui.title')" :model-value="activeTab" :tabs="tabs" @update:model-value="onTabChange">
+      <template #title-extra>
+        <a
+          v-if="effectiveComfyUrl"
+          :href="effectiveComfyUrl"
+          target="_blank"
+          rel="noopener"
+          :title="t('comfyui.open')"
+          class="title-launch-icon"
+        >
+          <MsIcon name="open_in_new" size="xs" />
+        </a>
+      </template>
+
+      <template #extra>
+        <span v-if="status" class="page-actions">
+          <template v-if="status.online">
+            <BaseButton size="sm" @click="comfyStop"><MsIcon name="stop" /> {{ t('common.btn.stop') }}</BaseButton>
+            <BaseButton size="sm" @click="comfyRestart"><MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}</BaseButton>
+          </template>
+          <BaseButton v-else size="sm" @click="comfyStart"><MsIcon name="play_arrow" /> {{ t('common.btn.start') }}</BaseButton>
+        </span>
+      </template>
+    </TabSwitcher>
 
     <!-- 未保存守卫 banner (仅 settings tab 显示) -->
     <UnsavedBanner
@@ -193,7 +201,7 @@ async function onTabChange(next: string) {
       @discard="discardChanges"
     />
 
-    <div v-show="activeTab === 'overview'">
+    <div v-show="activeTab === 'overview'" class="tab-panel">
       <ConsoleSection
         :status="status"
         :exec-state="execState"
@@ -201,11 +209,11 @@ async function onTabChange(next: string) {
       />
     </div>
 
-    <div v-show="activeTab === 'settings'" class="settings-workspace">
+    <div v-show="activeTab === 'settings'" class="tab-panel settings-workspace">
       <ParamsCard ref="paramsRef" :active="activeTab === 'settings'" />
     </div>
 
-    <div v-show="activeTab === 'plugins'">
+    <div v-show="activeTab === 'plugins'" class="tab-panel">
       <PluginsTab :online="status?.online" :active="activeTab === 'plugins'" />
     </div>
   </div>

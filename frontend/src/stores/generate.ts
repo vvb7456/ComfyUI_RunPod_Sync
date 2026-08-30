@@ -462,7 +462,7 @@ export const useGenerateStore = defineStore('generate', () => {
   // activeModelTypeByTask 是真实存储; activeModelType 是当前任务的派生值
   // (现有读取方 store.activeModelType 语义不变, 见 GeneratePage.vue:99-100)。
   const activeModelTypeByTask = reactive<{ image: string; video: string }>({
-    image: 'sdxl',
+    image: 'sd15',
     video: 'wan22_i2v',
   })
   // 当前任务 (image/video); restore 时由迁移逻辑设定, 默认 'image'
@@ -486,7 +486,7 @@ export const useGenerateStore = defineStore('generate', () => {
     componentsReady[type] = ready
   }
 
-  const currentConfig = computed<ModelTypeConfig>(() => MODEL_TYPES[activeModelType.value] || MODEL_TYPES.sdxl)
+  const currentConfig = computed<ModelTypeConfig>(() => MODEL_TYPES[activeModelType.value] || MODEL_TYPES.sd15)
   const currentState = computed<ModelState>(() => {
     if (!modelStates[activeModelType.value]) {
       modelStates[activeModelType.value] = createDefaultState(currentConfig.value)
@@ -500,7 +500,7 @@ export const useGenerateStore = defineStore('generate', () => {
    * 非激活实例若写 currentState 会串到别的架构上 (CN 模型自动选中曾因此串写)。
    */
   function stateFor(type: string): ModelState {
-    const cfg = MODEL_TYPES[type] || MODEL_TYPES.sdxl
+    const cfg = MODEL_TYPES[type] || MODEL_TYPES.sd15
     if (!modelStates[type]) {
       modelStates[type] = createDefaultState(cfg)
     }

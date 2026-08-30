@@ -63,7 +63,9 @@ defineEmits<{ click: [] }>()
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: 6px 12px;
+  padding: 0 12px;
+  height: 34px;
+  box-sizing: border-box;
   background: var(--bg3);
   border: 1px solid var(--bd);
   border-radius: var(--rs);

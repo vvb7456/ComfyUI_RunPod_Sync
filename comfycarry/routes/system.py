@@ -45,7 +45,8 @@ def _err(key: str, status: int = 400, /, *, _extra: dict | None = None, **params
 @bp.route("/api/version")
 def api_version():
     """返回当前部署版本信息"""
-    version_info = {"version": APP_VERSION, "branch": "main", "commit": ""}
+    # branch/commit 无稳定值 (Release 分发后 branch 为空), 由 .version 或 git 兜底填充
+    version_info = {"version": APP_VERSION, "branch": "", "commit": ""}
     version_file = os.path.join(SCRIPT_DIR, ".version")
     try:
         if os.path.exists(version_file):
@@ -225,7 +226,7 @@ def api_logs_stream(name):
 @bp.route("/api/overview")
 def api_overview():
     """聚合总览页所需全部数据，避免前端发 5+ 个并发请求"""
-    from . import tunnel as tunnel_mod, jupyter as jupyter_mod
+    from . import tunnel as tunnel_mod, jupyter as jupyter_mod, comfyui as comfyui_mod
     from ..services import sync_engine, comfyui_bridge
 
     result = {}
@@ -239,7 +240,8 @@ def api_overview():
     # ── ComfyUI 状态 ──
     comfyui = {"online": False, "version": "", "pytorch_version": "",
                "python_version": "", "queue_pending": 0, "queue_running": 0,
-               "current_prompt_id": None, "progress": None}
+               "current_prompt_id": None, "progress": None,
+               "port": comfyui_mod.comfyui_port()}
 
     # 先检查 PM2 状态, 避免 ComfyUI 离线时浪费 6s 在 HTTP 超时上
     comfy_pm2_online = False

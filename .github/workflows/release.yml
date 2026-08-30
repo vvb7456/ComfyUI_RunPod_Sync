@@ -1,0 +1,122 @@
+# ==============================================================================
+# ComfyCarry Release 发布 (GitHub Actions)
+#
+# 触发: 手动 dispatch 或 push tag v*
+# 流程: 从 tag 处 checkout → 构建前端 → 打包完整部署 tarball
+#       → 发布正式 latest Release
+# 产物: comfycarry-dist.tar.gz (后端 + 前端 dist + data)
+# 说明: 面板更新检查 (update.py) 与 bootstrap.sh 均以本 Release 为更新源,
+#       main 分支的 push 不再触发任何发布 —— commit 与 release 完全解耦。
+# ==============================================================================
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (如 v0.6.5, 需与 config.py 的 APP_VERSION 一致)"
+        required: true
+        type: string
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  ASSET_NAME: comfycarry-dist.tar.gz
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 确定 tag ──
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo ">>> Releasing ${TAG}"
+
+      # ── 检出 tag 对应代码 ──
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      # ── 校验 tag 与 APP_VERSION 一致 ──
+      - name: Verify APP_VERSION matches tag
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          APP_VERSION=$(python3 -c "import re; m=re.search(r'APP_VERSION\s*=\s*\"([^\"]+)\"', open('comfycarry/config.py').read()); print(m.group(1) if m else '')")
+          if [ "$TAG" != "$APP_VERSION" ]; then
+            echo "::error::tag (${TAG}) 与 comfycarry/config.py APP_VERSION (${APP_VERSION}) 不一致"
+            exit 1
+          fi
+
+      # ── 前端构建 ──
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build icon font subset
+        working-directory: frontend
+        run: |
+          pip install fonttools brotli
+          bash build-fonts.sh
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      # ── 打包完整部署 tarball ──
+      # 结构 (解压到面板根即得完整部署):
+      #   comfycarry/  workspace_manager.py  comfycarry_ws_broadcast/
+      #   data/  static/dist/...
+      - name: Package dist
+        run: |
+          STAGE="$(mktemp -d)/comfycarry"
+          mkdir -p "$STAGE/static"
+
+          cp -r comfycarry "$STAGE/comfycarry"
+          cp -r comfycarry_ws_broadcast "$STAGE/comfycarry_ws_broadcast"
+          cp -r data "$STAGE/data"
+          cp workspace_manager.py "$STAGE/workspace_manager.py"
+          cp -r static/dist "$STAGE/static/dist"
+          cp favicon.ico "$STAGE/favicon.ico"
+
+          # 清理 pyc 缓存
+          find "$STAGE" -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
+
+          tar -czf "$ASSET_NAME" -C "$(dirname "$STAGE")" comfycarry
+          echo ">>> Packaged $(du -h "$ASSET_NAME" | cut -f1)"
+          tar -tzf "$ASSET_NAME" | head -20
+
+      # ── 发布 Release ──
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ComfyCarry ${{ steps.tag.outputs.tag }}
+          body: |
+            ComfyCarry ${{ steps.tag.outputs.tag }} 正式发布。
+
+            `comfycarry-dist.tar.gz` 为完整部署包（后端 + 前端构建产物 + 提示词库数据），
+            bootstrap.sh 与面板内置更新均从此 Release 下载。
+
+            tag commit: ${{ steps.tag.outputs.tag }}@${{ github.sha }}
+          files: ${{ env.ASSET_NAME }}
+          make_latest: true

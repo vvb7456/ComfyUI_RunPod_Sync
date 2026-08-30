@@ -4,7 +4,7 @@
 
         /* ── Sidebar ── */
         .sidebar {
-            width: clamp(184px, 12.5vw, 208px);
+            width: var(--sidebar-w, clamp(196px, 13vw, 220px));
             background: var(--bg2);
             border-right: 1px solid var(--bd);
             display: flex;
@@ -18,19 +18,19 @@
         }
 
         .sidebar.collapsed {
-            width: 56px
+            width: var(--sidebar-collapsed-w, 56px)
         }
 
-        /* min-height 与 .page-header 严格一致 —— 两者的底边线要接成一条 */
+        /* ── Sidebar Logo ── */
         .sidebar-logo {
-            padding: 0 16px;
-            min-height: 64px;
-            border-bottom: 1px solid var(--bd);
+            padding: 12px 16px 6px 16px;
+            min-height: 52px;
             display: flex;
             align-items: center;
             gap: 10px;
             white-space: nowrap;
-            overflow: hidden
+            overflow: hidden;
+            box-sizing: border-box;
         }
 
         /* 标记 (logo-mark.svg) 展开与折叠都在场 —— 展开时只剩光秃秃的文字, 不像标识。
@@ -39,7 +39,7 @@
             width: 28px;
             height: 28px;
             flex-shrink: 0;
-            transition: width .25s, height .25s
+            transition: width .25s, height .25s;
         }
 
         /* 渐变吃在标记里, 字标实心 —— 渐变填充"文字"才是 AI 模板的视觉签名。
@@ -48,26 +48,73 @@
             font-size: 1.3rem;
             font-weight: 700;
             letter-spacing: -.02em;
-            color: var(--t1)
+            color: var(--t1);
         }
 
         .sidebar-logo .logo-text__b {
-            color: var(--ac)
+            color: var(--ac);
         }
 
-        /* 竖向 padding 归零: 20px + 30px 图标 = 70px 会让折叠后的分隔线比展开态低 6px */
         .sidebar.collapsed .sidebar-logo {
-            padding: 0 12px;
-            justify-content: center
+            padding: 12px 0 6px 0;
+            justify-content: center;
         }
 
         .sidebar.collapsed .sidebar-logo .logo-icon {
-            width: 26px;
-            height: 26px
+            width: 28px;
+            height: 28px;
         }
 
         .sidebar.collapsed .sidebar-logo .logo-text {
-            display: none
+            display: none;
+        }
+
+        /* ── Sidebar Toggle Rail Handle (垂直居中长条圆角矩形手柄) ── */
+        .sidebar-toggle {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            right: -8px;
+            width: 16px;
+            height: 48px;
+            border-radius: 8px;
+            background: var(--bg2);
+            border: 1px solid var(--bd);
+            color: var(--t3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            z-index: 51;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: opacity .2s ease, background .15s ease, border-color .15s ease, color .15s ease;
+            opacity: 0;
+        }
+
+        .sidebar:hover .sidebar-toggle {
+            opacity: 1;
+        }
+
+        .sidebar.collapsed .sidebar-toggle {
+            opacity: 0.6;
+        }
+
+        .sidebar.collapsed:hover .sidebar-toggle,
+        .sidebar-toggle:hover {
+            opacity: 1;
+            background: var(--bg3);
+            border-color: var(--ac);
+            color: var(--ac);
+        }
+
+        .sidebar-toggle .ms {
+            font-size: 14px;
+            transition: transform .25s ease;
+        }
+
+        .sidebar.collapsed .sidebar-toggle .ms {
+            transform: rotate(180deg);
         }
 
         .sidebar-logo small {
@@ -80,64 +127,102 @@
 
         .sidebar-nav {
             flex: 1;
-            padding: 12px 0;
+            padding: 8px 0;
             display: flex;
-            flex-direction: column
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden
         }
 
-        .sidebar-toggle {
-            position: absolute;
-            top: 22px;
-            right: -12px;
+        .nav-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 6px
+        }
+
+        .nav-group.first-group {
+            margin-top: 0
+        }
+
+        .nav-group-header {
+            padding: 10px 16px 4px 16px;
+            display: flex;
+            align-items: center
+        }
+
+        .nav-group.first-group .nav-group-header {
+            padding-top: 4px
+        }
+
+        .nav-group-title {
+            font-size: .68rem;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--t3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            user-select: none
+        }
+
+        .nav-group-divider {
+            display: none
+        }
+
+        .sidebar.collapsed .nav-group-header {
+            padding: 6px 0;
+            justify-content: center
+        }
+
+        .sidebar.collapsed .nav-group-title {
+            display: none
+        }
+
+        .sidebar.collapsed .nav-group-divider {
+            display: block;
             width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: var(--bg2);
-            border: 1px solid var(--bd);
-            color: var(--t2);
-            cursor: pointer;
+            height: 1px;
+            background: var(--bd);
+            opacity: .8
+        }
+
+        .sidebar.collapsed .nav-group.first-group .nav-group-divider {
+            display: none
+        }
+
+        .nav-group-items {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: .7rem;
-            z-index: 51;
-            transition: transform .25s;
-            opacity: 0
-        }
-
-        .sidebar:hover .sidebar-toggle {
-            opacity: 1
-        }
-
-        .sidebar.collapsed .sidebar-toggle {
-            opacity: 1;
-            transform: rotate(180deg)
+            flex-direction: column;
+            gap: 2px
         }
 
         .nav-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 11px 20px;
+            gap: 10px;
+            margin: 1px 8px;
+            padding: 7px 10px;
+            border-radius: var(--r-sm);
             cursor: pointer;
             color: var(--t2);
-            font-size: .9rem;
+            font-size: .88rem;
             font-weight: 500;
-            transition: all .15s;
+            transition: background .15s ease, color .15s ease;
             border: none;
-            border-left: 3px solid transparent;
             background: none;
             font-family: inherit;
-            width: 100%;
+            width: calc(100% - 16px);
             text-align: left;
             white-space: nowrap;
             overflow: hidden
         }
 
         .sidebar.collapsed .nav-item {
-            padding: 10px 0;
-            justify-content: center;
-            border-left-width: 0
+            margin: 2px 8px;
+            padding: 8px 0;
+            width: calc(100% - 16px);
+            justify-content: center
         }
 
         .sidebar.collapsed .nav-label {
@@ -145,49 +230,60 @@
         }
 
         .nav-item:hover {
-            background: color-mix(in srgb, var(--ac) 6%, transparent);
+            background: color-mix(in srgb, var(--t1) 6%, transparent);
             color: var(--t1)
         }
 
         .nav-item.active {
+            color: var(--t1);
+            font-weight: 600;
+            background: color-mix(in srgb, var(--ac) 12%, transparent)
+        }
+
+        [data-theme="light"] .nav-item.active {
             color: var(--ac);
-            border-left-color: var(--ac);
-            background: color-mix(in srgb, var(--ac) 10%, transparent)
+            background: color-mix(in srgb, var(--ac) 14%, transparent)
         }
 
         .sidebar.collapsed .nav-item.active {
-            border-left-color: transparent;
             background: color-mix(in srgb, var(--ac) 14%, transparent)
         }
 
         .nav-item .icon {
             font-size: 1.1rem;
-            width: 32px;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0
+            flex-shrink: 0;
+            color: inherit
         }
 
         .nav-item .icon .ms {
-            font-size: 28px;
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 28;
+            font-size: 20px;
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+            transition: font-variation-settings .15s, color .15s
+        }
+
+        .nav-item.active .icon {
+            color: var(--ac)
         }
 
         .nav-item.active .icon .ms {
-            font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 28;
+            font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20
         }
 
         .sidebar-footer {
-            padding: 10px 16px;
-            border-top: 1px solid var(--bd);
+            padding: 8px 16px 12px 16px;
             font-size: .75rem;
             color: var(--t3);
-            overflow: hidden
+            overflow: hidden;
+            box-sizing: border-box;
         }
 
         .sidebar.collapsed .sidebar-footer {
-            padding: 12px 8px;
+            padding: 8px 8px 12px 8px;
             text-align: center
         }
 
@@ -288,7 +384,7 @@
         .lang-btn.active {
             background: var(--ac);
             border-color: var(--ac);
-            color: #fff;
+            color: var(--t-inv);
         }
 
         .lang-switcher-collapsed {
@@ -320,24 +416,29 @@
         .lang-btn-mini.active {
             background: var(--ac);
             border-color: var(--ac);
-            color: #fff;
+            color: var(--t-inv);
         }
 
-        /* ── Content ── */
+        /* ── Content (全屏主视口滚动容器：滚动条始终紧贴屏幕最右侧) ── */
         .content {
-            margin-left: clamp(184px, 12.5vw, 208px);
+            margin-left: var(--sidebar-w, clamp(196px, 13vw, 220px));
             flex: 1;
             height: 100vh;
             overflow-y: auto;
-            transition: margin-left .25s ease
+            overflow-x: hidden;
+            background: var(--bg-ambient);
+            background-attachment: fixed;
+            transition: margin-left .25s ease;
         }
 
         .content.sidebar-collapsed {
-            margin-left: 56px
+            margin-left: var(--sidebar-collapsed-w, 56px);
         }
 
         .page-body {
-            padding: var(--page-body-pt) var(--page-pad)
+            padding: var(--page-body-pt) var(--page-pad) var(--page-pad);
+            box-sizing: border-box;
+            min-height: 100%;
         }
 
         /* ── 限宽跟内容类型走, 不跟页面走 ──
@@ -353,96 +454,98 @@
             max-width: 560px
         }
 
-        /* ── Page Header ──
-           一行, 高度恒定 64px —— 与 .sidebar-logo 严格同高, 两者的底边线接成一条
-           贯穿视口的横线。改这里的高度必须同步改那里, 以及 --page-header-h。
-           分区导航 (tabs) 不在这块里, 它在 .page-body 顶部, 见 PageHeader.vue 注释。 */
+        /* ── Page Title & Actions (页内首行 / TabSwitcher 标题区共用) ──
+            标题行 min-height 38px 与 .tab-switcher 对齐。 */
         :root {
-            --page-header-h: 64px;
             /* .page-body 上方留白, TabSwitcher sticky 时用负 margin 吃掉这块, banner 定位要算入 */
-            --page-body-pt: clamp(20px, 2vw, 32px);
-            /* TabSwitcher tab 行高 (padding 10×2 + 文字 22 + 底边线 1)。
+            --page-body-pt: clamp(16px, 1.8vw, 24px);
+            /* TabSwitcher tab 行高 (padding 6×2 + 文字 26)。
                banner 等下游 sticky 元素定位要叠加; 与 TabSwitcher 样式任一改动同步。 */
-            --tab-switcher-row-h: 43px;
+            --tab-switcher-row-h: 38px;
         }
 
-        .page-header {
-            padding: 0 var(--page-pad);
-            min-height: var(--page-header-h);
-            border-bottom: 1px solid var(--bd);
+        /* 移动端 TabSwitcher 为双层布局 (title 行 + tabs 行各占一行, 见
+           TabSwitcher.vue @media ≤768px flex-wrap), 吸顶总高约 88px
+           (title ~32 + gap 8 + tabs ~32 + padding-bottom 8 + margin-top 补偿
+           已含于实测 88px)。下游 sticky 定位变量随之放大, 否则 banner 会
+           盖住 tabs 行 (实测重叠 14px)。 */
+        @media (max-width: 768px) {
+            :root {
+                --tab-switcher-row-h: 72px;
+            }
+        }
+
+        .page-header-row {
             display: flex;
             align-items: center;
-            gap: 10px;
-            background: rgba(10, 10, 15, .8);
-            backdrop-filter: blur(12px);
+            gap: 12px;
+            min-height: 38px;
+            margin-bottom: var(--sp-4);
             position: sticky;
             top: 0;
-            z-index: 40
+            z-index: 20;
+            background: var(--bg-ambient);
+            background-attachment: fixed;
+            margin-top: calc(-1 * var(--page-body-pt));
+            padding-top: var(--page-body-pt);
+            padding-bottom: 8px;
+            mask-image: linear-gradient(to bottom, black calc(100% - 10px), transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 10px), transparent 100%);
         }
 
-        /* 各页把动作按钮包在 <span v-if> 里时, 让包装层不产生盒子, 否则 gap 失效。
-           这条必须留在全局 CSS —— 写进 PageHeader 的 scoped 样式会失效, 因为
-           插槽内容带的是父组件的 scope id, 匹配不到子组件的选择器。 */
-        .page-header__actions>span {
-            display: contents
+        .page-header-row__spacer {
+            flex: 1;
         }
 
-        /* ── Theme Toggle Button ── */
-        .theme-toggle {
-            background: none;
-            border: none;
-            color: var(--t2);
-            cursor: pointer;
-            display: flex;
+        .page-title-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .page-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: -.015em;
+            color: var(--t1);
+            margin: 0;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .title-launch-icon {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 4px;
-            border-radius: 50%;
-            transition: color .2s;
+            color: var(--t3);
+            text-decoration: none;
+            transition: color .15s ease, transform .15s ease;
+            vertical-align: middle;
+            margin-left: 2px;
+            padding: 0;
+            line-height: 1;
         }
 
-        .theme-toggle:hover {
-            color: var(--ac)
+        .title-launch-icon:hover {
+            color: var(--ac);
+            transform: translate(1px, -1px);
         }
 
-        .theme-toggle .ms {
-            font-size: 20px;
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+        .title-launch-icon .ms {
+            font-size: 14px;
         }
 
-        /* ── Scroll-to-top FAB ── */
-        .scroll-top-fab {
-            position: fixed;
-            bottom: clamp(60px, 5vw, 80px);
-            right: clamp(20px, 2vw, 32px);
-            width: clamp(40px, 3vw, 52px);
-            height: clamp(40px, 3vw, 52px);
-            border-radius: 50%;
-            background: var(--ac);
-            color: #fff;
-            border: none;
-            cursor: pointer;
-            font-size: clamp(16px, 1.2vw, 22px);
-            display: flex;
+        .page-title-divider {
+            width: 1px;
+            height: 16px;
+            background: var(--bd);
+            opacity: .8;
+        }
+
+        .page-actions {
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 12px color-mix(in srgb, var(--ac) 40%, transparent);
-            opacity: 0;
-            transform: translateY(20px);
-            pointer-events: none;
-            transition: opacity .25s, transform .25s;
-            z-index: 900
-        }
-
-        .scroll-top-fab.visible {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto
-        }
-
-        .scroll-top-fab:hover {
-            background: var(--ac2);
-            transform: translateY(-2px)
+            gap: var(--sp-2);
         }
 
         /* ── Settings Grid ── */
@@ -472,21 +575,23 @@
             border: none;
             color: var(--t2);
             cursor: pointer;
-            padding: 4px;
-            margin: 0 4px 0 -4px;
-            border-radius: 6px;
+            padding: 2px 4px;
+            margin-left: -4px;
+            border-radius: var(--r-xs, 4px);
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            transition: color .15s
+            transition: color .15s ease, background .15s ease;
+            line-height: 1;
         }
 
         .mobile-menu-btn:hover {
-            color: var(--t1)
+            color: var(--t1);
+            background: color-mix(in srgb, var(--t1) 6%, transparent);
         }
 
         .mobile-menu-btn .ms {
-            font-size: 22px
+            font-size: 20px;
         }
 
         .mobile-overlay {
@@ -514,18 +619,12 @@
         /* ── Responsive ── */
         @media(max-width:768px) {
             .mobile-menu-btn {
-                display: inline-flex
+                display: inline-flex;
             }
 
-            .page-header {
-                padding: 0 14px;
-                min-height: 56px;
-                gap: 8px
-            }
-
-            /* 移动端页头更矮, 同步变量让 TabSwitcher sticky top 跟随 */
-            :root {
-                --page-header-h: 56px;
+            .page-header-row {
+                flex-wrap: wrap;
+                gap: 8px 0;
             }
 
             .sidebar {
@@ -567,5 +666,51 @@
 
             .settings-grid {
                 grid-template-columns: 1fr !important
+            }
+        }
+
+        /* ── Global Page & Tab Transitions ── */
+        /* tab-panel: tab 内容面板 (v-show 常驻挂载, 组件不卸载, 状态与
+           watch(active) 激活刷新语义完整保留)。display:none → block 时
+           CSS animation 自动重播, 以此获得进入动画, 无需 <Transition>。 */
+        .page-fade-enter-active {
+            transition: opacity .20s cubic-bezier(0.16, 1, 0.3, 1), transform .20s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: opacity, transform;
+        }
+
+        .page-fade-leave-active {
+            transition: opacity .12s ease;
+            will-change: opacity;
+        }
+
+        .page-fade-enter-from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+
+        .page-fade-leave-to {
+            opacity: 0;
+        }
+
+        .tab-panel {
+            animation: tab-panel-in .20s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes tab-panel-in {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .page-fade-enter-active,
+            .page-fade-leave-active {
+                transition: none !important;
+                transform: none !important;
+            }
+
+            .tab-panel {
+                animation: none !important;
             }
         }

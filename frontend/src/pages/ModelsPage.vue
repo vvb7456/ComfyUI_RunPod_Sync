@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import TabSwitcher from '@/components/ui/TabSwitcher.vue'
 import Drawer from '@/components/ui/Drawer.vue'
 import DrawerTrigger from '@/components/ui/DrawerTrigger.vue'
@@ -138,10 +137,9 @@ function openPreviewSingle(url: string) {
 </script>
 
 <template>
-  <PageHeader :title="t('models.title')" />
   <div class="page-body">
-    <!-- 触发器走 TabSwitcher 的默认插槽: 与 tab 同处一行, 底边线仍然通栏 -->
-    <TabSwitcher v-model="activeTab" :tabs="tabs">
+    <!-- 触发器走 TabSwitcher 的默认插槽: 与 tab 同处一行 -->
+    <TabSwitcher :title="t('models.title')" v-model="activeTab" :tabs="tabs">
       <DrawerTrigger
         class="models-drawer-trigger"
         icon="download"
@@ -154,15 +152,15 @@ function openPreviewSingle(url: string) {
       />
     </TabSwitcher>
 
-    <div v-show="activeTab === 'local'">
+    <div v-show="activeTab === 'local'" class="tab-panel">
       <LocalModelsTab :active="activeTab === 'local'" @open-local="openLocal" @open-preview="openPreviewSingle" />
     </div>
 
-    <div v-show="activeTab === 'huggingface'">
+    <div v-show="activeTab === 'huggingface'" class="tab-panel">
       <HuggingFaceTab :active="activeTab === 'huggingface'" @open-meta="openMeta" @open-preview="openPreviewSingle" />
     </div>
 
-    <div v-show="activeTab === 'civitai'">
+    <div v-show="activeTab === 'civitai'" class="tab-panel">
       <CivitaiTab :active="activeTab === 'civitai'" :initial-type="civitaiInitialType" @open-meta="openMeta" @open-preview="openPreviewSingle" />
     </div>
 

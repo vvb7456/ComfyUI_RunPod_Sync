@@ -1,0 +1,51 @@
+/* ═══ Dashboard 共享样式 ═════════════════════════════════════════════
+ * Dashboard 5 个子组件 (Hero/Tasks/Services/Gallery/Diagnostics) 共用的
+ * 小节骨架样式。原先在各组件 scoped style 中逐字重复, 提取至此统一维护。
+ * 注意: 使用方组件均为 scoped, 这些类通过全局样式生效, 请勿与
+ * 其他页面类名冲突 (dash- 前缀为 Dashboard 专属命名空间)。
+ */
+
+.dash-section {
+  margin-top: clamp(28px, 3.5vw, 40px);
+}
+
+.dash-section-header {
+  margin-bottom: 14px;
+}
+
+.dash-section-tagline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.dash-accent-bar {
+  width: 2.5px;
+  height: 9px;
+  background: var(--ac);
+  border-radius: 1.5px;
+  flex-shrink: 0;
+}
+
+.dash-tagline-text {
+  font-size: var(--text-xxs);
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.dash-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dash-section-title {
+  font-size: clamp(1.15rem, 1.6vw, 1.35rem);
+  font-weight: 700;
+  color: var(--t1);
+  letter-spacing: -0.015em;
+  margin: 0;
+}

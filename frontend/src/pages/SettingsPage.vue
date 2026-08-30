@@ -1,16 +1,5 @@
-<script lang="ts">
-// 模块级快照 (ref): usePromptSettings 的 settings 是模块级共享状态,
-// 组件销毁重建时组件级 ref 会重置, 导致误报 dirty。
-// 快照必须与表单同生命周期 (模块级), 用 ref (而非 let) 保持响应式,
-// 否则 computed 无法追踪 let 赋值, banner 不会在保存/放弃后消失。
-// ref 在 <script setup> 的 import 中声明, SFC 编译合并两块为同一模块作用域。
-// llm 表单是组件级状态, llmSnapshot 随之声明在 setup 内 (与表单同生命周期)。
-import { ref } from 'vue'
-const promptSnapshot = ref('')
-</script>
-
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TabSwitcher from '@/components/ui/TabSwitcher.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
@@ -24,7 +13,6 @@ import UnsavedBanner from '@/components/ui/UnsavedBanner.vue'
 import FormField from '@/components/form/FormField.vue'
 import BaseSelect from '@/components/form/BaseSelect.vue'
 import FieldControlRow from '@/components/form/FieldControlRow.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import { useApiFetch } from '@/composables/useApiFetch'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
@@ -50,11 +38,12 @@ const app = useAppStore()
 
 const {
   settings: promptSettings,
-  loaded: promptLoaded,
   saving: promptSaving,
+  isDirty: promptFormDirty,
   translateProviders: promptTranslateProviders,
   load: loadPromptSettings,
   save: savePromptSettings,
+  discard: discardPromptSettings,
 } = usePromptSettings()
 
 const promptAutocompleteOptions = [
@@ -141,7 +130,7 @@ const updateInfo = ref<{
   current_version?: string
   current_commit?: string
   latest_version?: string
-  latest_commit?: string
+  latest_name?: string
   latest_message?: string
   has_update?: boolean
 } | null>(null)
@@ -176,7 +165,7 @@ async function checkUpdate() {
     current_version: string
     current_commit: string
     latest_version: string
-    latest_commit: string
+    latest_name: string
     latest_message: string
     has_update: boolean
   }>('/api/update/check')
@@ -321,14 +310,9 @@ const llmBaseUrlPlaceholder = computed(() =>
 
 // ─── 未保存守卫 (prompt / llm 表单) ─────────────────────────────────────────
 // dirty = 表单值 ≠ 基线 (最近一次服务端确认值), 不耦合 activeTab。
-// 基线只在「加载成功 / 保存成功」时更新; 首次加载完成前 dirty 恒为 false,
-// 避免挂载时快照初值 ('') 与表单默认值不等造成误报 dirty。
+// 基线只在「加载成功 / 保存成功」时更新; 首次加载完成前 dirty 恒为 false。
 // 注意: 本节必须位于 LLM state 声明之后 —— useUnsavedGuard 对 Ref 型 dirty
 // 会立即求值 (watch immediate), getter 先于 llmProvidersLoaded 等声明执行会 TDZ。
-
-function snapshotPrompt(): string {
-  return JSON.stringify(promptSettings)
-}
 
 function snapshotLlm(): string {
   return JSON.stringify({
@@ -343,8 +327,6 @@ function snapshotLlm(): string {
 }
 
 const llmSnapshot = ref('')
-
-const promptFormDirty = computed(() => promptLoaded.value && snapshotPrompt() !== promptSnapshot.value)
 const llmFormDirty = computed(() => llmProvidersLoaded.value && snapshotLlm() !== llmSnapshot.value)
 
 // banner 可见性: 当前 tab 对应的表单 dirty 时才显示
@@ -358,7 +340,7 @@ const guard = useUnsavedGuard({
   saveAction: async () => {
     if (promptFormDirty.value) {
       const ok = await savePromptSettings()
-      if (ok) { promptSnapshot.value = snapshotPrompt(); toast(t('settings.prompt.saved'), 'success') }
+      if (ok) toast(t('settings.prompt.saved'), 'success')
       return ok
     }
     if (llmFormDirty.value) {
@@ -371,7 +353,7 @@ const guard = useUnsavedGuard({
   discardAction: async () => {
     // 守卫拦截所有离开路径, 同一时刻至多一个表单 dirty; 双分支为防御性保留
     if (promptFormDirty.value) {
-      try { await loadPromptSettings(true) } finally { promptSnapshot.value = snapshotPrompt() }
+      await discardPromptSettings()
     }
     if (llmFormDirty.value) {
       try { await loadLlmTab() } finally { llmSnapshot.value = snapshotLlm() }
@@ -402,16 +384,20 @@ async function loadSettings() {
 
 // ─── Tab switch ───────────────────────────────────────────────────────────────
 
-async function onTabChange(tab: string) {
+async function onTabChange(next: string) {
   // 离开 prompt/llm 表单 tab 时守卫未保存更改
-  if (!(await guard.guardTabSwitch())) return
-  activeTab.value = tab
+  if (activeTab.value === 'prompt' && next !== 'prompt' && promptFormDirty.value) {
+    if (!(await guard.guardTabSwitch())) return
+  }
+  if (activeTab.value === 'llm' && next !== 'llm' && llmFormDirty.value) {
+    if (!(await guard.guardTabSwitch())) return
+  }
+  activeTab.value = next
   // 守卫保证进入时必然无未保存更改, 可安全用服务端值刷新基线
-  if (tab === 'llm' && !llmProvidersLoaded.value) await loadLlmTab()
-  if (tab === 'prompt') {
+  if (next === 'llm' && !llmProvidersLoaded.value) await loadLlmTab()
+  if (next === 'prompt') {
     // 强制重载: 基线以服务端实际值为准, 避免其他入口改动造成快照漂移
     await loadPromptSettings(true)
-    promptSnapshot.value = snapshotPrompt()
   }
 }
 
@@ -683,10 +669,8 @@ loadSettings()
 
 <template>
   <div class="settings-page">
-    <PageHeader :title="t('settings.title')" />
-
     <div class="page-body">
-      <TabSwitcher :tabs="tabs" :model-value="activeTab" @update:model-value="onTabChange" />
+      <TabSwitcher :title="t('settings.title')" :tabs="tabs" :model-value="activeTab" @update:model-value="onTabChange" />
 
       <!-- 未保存守卫 banner (prompt/llm 表单 dirty 时显示) -->
       <UnsavedBanner
@@ -700,7 +684,7 @@ loadSettings()
       />
 
       <!-- ═══ Tab: ComfyCarry ═══════════════════════════════ -->
-      <div v-show="activeTab === 'comfycarry'" class="settings-centered">
+      <div v-show="activeTab === 'comfycarry'" class="tab-panel settings-centered">
           <!-- Password -->
           <BaseCard density="roomy">
             <h3 class="settings-card-title">
@@ -859,9 +843,8 @@ loadSettings()
                   <template v-else-if="updateInfo">
                     <StatusDot :status="updateInfo.has_update ? 'pending' : 'success'" size="sm" />
                     <span>{{ updateInfo.has_update ? t('settings.update.update_available') : t('settings.update.up_to_date') }}</span>
-                    <span v-if="updateInfo.has_update && (updateInfo.latest_version || updateInfo.latest_commit)" class="about-update-target">
-                      <span v-if="updateInfo.latest_version">{{ updateInfo.latest_version }}</span>
-                      <code v-if="updateInfo.latest_commit">{{ updateInfo.latest_commit }}</code>
+                    <span v-if="updateInfo.has_update && updateInfo.latest_version" class="about-update-target">
+                      <span>{{ updateInfo.latest_version }}</span>
                     </span>
                   </template>
                 </div>
@@ -889,7 +872,7 @@ loadSettings()
       </div>
 
       <!-- ═══ Tab: Prompt Editor ═══════════════════════════ -->
-      <div v-show="activeTab === 'prompt'" class="settings-centered">
+      <div v-show="activeTab === 'prompt'" class="tab-panel settings-centered">
         <!-- 翻译设置 -->
         <BaseCard density="roomy">
           <h3 class="settings-card-title">
@@ -961,7 +944,7 @@ loadSettings()
       </div>
 
       <!-- ═══ Tab: CivitAI ═══════════════════════════════ -->
-      <div v-show="activeTab === 'civitai'" class="settings-centered">
+      <div v-show="activeTab === 'civitai'" class="tab-panel settings-centered">
         <BaseCard density="roomy">
           <h3 class="settings-card-title">
             <MsIcon name="palette" />
@@ -993,7 +976,7 @@ loadSettings()
       </div>
 
       <!-- ═══ Tab: LLM ═══════════════════════════════ -->
-      <div v-show="activeTab === 'llm'" class="settings-centered">
+      <div v-show="activeTab === 'llm'" class="tab-panel settings-centered">
         <!-- Provider & Model (合并卡片) -->
         <BaseCard density="roomy">
           <h3 class="settings-card-title">
@@ -1238,13 +1221,6 @@ loadSettings()
   align-items: center;
   gap: 5px;
   color: var(--t3);
-}
-.about-update-target code {
-  padding: 1px 5px;
-  border-radius: var(--r-xs);
-  background: var(--bg2);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: .7rem;
 }
 .about-project {
   margin-top: 28px;

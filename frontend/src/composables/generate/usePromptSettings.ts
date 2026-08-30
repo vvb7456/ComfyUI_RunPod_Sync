@@ -4,7 +4,7 @@
  * 模块级 ref，多组件导入同一份状态。
  * SettingsPage 和 PromptEditorModal 都可读写。
  */
-import { reactive, readonly, ref } from 'vue'
+import { computed, reactive, readonly, ref } from 'vue'
 
 import type { PromptEditorSettings } from '@/types/prompt-library'
 import { useApiFetch } from '@/composables'
@@ -29,20 +29,25 @@ const DEFAULTS: PromptEditorSettings = {
 const settings = reactive<PromptEditorSettings>({ ...DEFAULTS })
 const loaded = ref(false)
 const saving = ref(false)
+const snapshot = ref('')
 const translateProviders = ref<string[]>([])
-const translateDefaultChain = ref<string[]>([])
+
+function takeSnapshot(): string {
+  return JSON.stringify(settings)
+}
+
+const isDirty = computed(() => loaded.value && takeSnapshot() !== snapshot.value)
 
 // ── composable ────────────────────────────────────────────────
 
 export function usePromptSettings() {
   const { get, put } = useApiFetch()
 
-  /** 从后端加载设置 (首次调用时执行，后续跳过) */
+  /** 从后端加载设置 (首次调用时执行，后续跳过; force=true 强制重新获取) */
   async function load(force = false) {
     if (loaded.value && !force) return
     const res = await get<PromptEditorSettings & {
       translate_providers?: string[]
-      translate_default_chain?: string[]
     }>('/api/prompt-library/settings')
     if (res) {
       Object.assign(settings, {
@@ -58,8 +63,8 @@ export function usePromptSettings() {
         translate_provider: res.translate_provider ?? DEFAULTS.translate_provider,
       })
       translateProviders.value = res.translate_providers ?? []
-      translateDefaultChain.value = res.translate_default_chain ?? []
       loaded.value = true
+      snapshot.value = takeSnapshot()
     }
   }
 
@@ -79,19 +84,28 @@ export function usePromptSettings() {
         autocomplete_limit: settings.autocomplete_limit,
         translate_provider: settings.translate_provider,
       })
-      return !!res?.ok
+      if (res?.ok) {
+        snapshot.value = takeSnapshot()
+        return true
+      }
+      return false
     } finally {
       saving.value = false
     }
   }
 
+  /** 放弃未保存更改, 重新从后端加载并重置快照 */
+  async function discard() {
+    await load(true)
+  }
+
   return {
     settings,
-    loaded: readonly(loaded),
     saving: readonly(saving),
+    isDirty,
     translateProviders: readonly(translateProviders),
-    translateDefaultChain: readonly(translateDefaultChain),
     load,
     save,
+    discard,
   }
 }

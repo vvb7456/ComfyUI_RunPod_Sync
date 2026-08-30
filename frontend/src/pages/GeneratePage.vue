@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onActivated, onDeactivated, provide, ref, watch, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useExecTracker } from '@/composables/useExecTracker'
 import { useComfySSE } from '@/composables/useComfySSE'
@@ -9,6 +10,7 @@ import { useApiFetch } from '@/composables/useApiFetch'
 import { useGenerateStore } from '@/stores/generate'
 import { useGenerateQueueStore } from '@/stores/generateQueue'
 import { useBackgroundRunStore } from '@/stores/backgroundRun'
+import { useAppStore } from '@/stores/app'
 import { useGenerateOptions } from '@/composables/generate/useGenerateOptions'
 import { useComfyGate } from '@/composables/generate/useComfyGate'
 import { useTaskRegistry } from '@/composables/generate/useTaskRegistry'
@@ -16,7 +18,7 @@ import { useGenerateSubmit } from '@/composables/generate/useGenerateSubmit'
 import { useGeneratePreview } from '@/composables/generate/useGeneratePreview'
 import { GenerateOptionsKey } from '@/composables/generate/keys'
 import { MODEL_TYPES } from '@/config/model-types'
-import PageHeader from '@/components/layout/PageHeader.vue'
+import MsIcon from '@/components/ui/MsIcon.vue'
 import DropdownMenu, { type DropdownMenuItem } from '@/components/ui/DropdownMenu.vue'
 import SegmentedControl, { type SegmentOption } from '@/components/ui/SegmentedControl.vue'
 import Drawer from '@/components/ui/Drawer.vue'
@@ -25,9 +27,11 @@ import ModelTab from '@/components/generate/ModelTab.vue'
 import QueuePanel from '@/components/generate/QueuePanel.vue'
 import HistoryPanel from '@/components/generate/HistoryPanel.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
-import MsIcon from '@/components/ui/MsIcon.vue'
 
 defineOptions({ name: 'GeneratePage' })
+
+const router = useRouter()
+const route = useRoute()
 
 const { t } = useI18n({ useScope: 'global' })
 const { toast } = useToast()
@@ -36,6 +40,7 @@ const store = useGenerateStore()
 const queueStore = useGenerateQueueStore()
 // 后台运行 store: frozen 真相在服务端, 不是本地 ref
 const bg = useBackgroundRunStore()
+const app = useAppStore()
 const frozen = computed(() => bg.state === 'running')
 
 /**
@@ -221,11 +226,10 @@ const menuItems = computed<DropdownMenuItem[]>(() => {
 })
 
 // 当前选中模型 (用于触发器显示)
-const currentConfig = computed(() => MODEL_TYPES[store.activeModelType] || MODEL_TYPES.sdxl)
+const currentConfig = computed(() => MODEL_TYPES[store.activeModelType] || MODEL_TYPES.sd15)
 
 // ── 队列/历史抽屉 (顶栏右侧按钮 + Drawer) ──────────────────────────────────
 const drawerOpen = ref(false)
-// 抽屉内容首开才挂载: Drawer 本身常驻, slot 内容 v-if 首次打开后保留
 const drawerEverOpened = ref(false)
 
 function openDrawer() {
@@ -237,6 +241,30 @@ function openDrawer() {
     queueStore.loadHistory()
   }
 }
+
+watch(
+  () => route.query.panel,
+  (panel) => {
+    if (panel === 'queue' || panel === 'history') {
+      openDrawer()
+    }
+  },
+  { immediate: true },
+)
+
+onActivated(() => {
+  if (route.query.panel === 'queue' || route.query.panel === 'history') {
+    openDrawer()
+  }
+})
+
+watch(drawerOpen, (open) => {
+  if (!open && route.query.panel) {
+    const q = { ...route.query }
+    delete q.panel
+    router.replace({ query: q })
+  }
+})
 
 // KeepAlive 下切走是 onDeactivated 而非 onUnmounted: 抽屉随页面失活关闭,
 // 顺带释放 Drawer 的 body 滚动锁 (其 watch close 分支 / onUnmounted 都不会在
@@ -512,7 +540,6 @@ sse.start()
 </script>
 
 <template>
-  <PageHeader :title="t('generate.title')" />
   <div class="page-body">
     <!-- Gate overlay when ComfyUI is not ready -->
     <div v-if="gate.state.value !== 'ready'" class="gen-gate-overlay">
@@ -536,52 +563,68 @@ sse.start()
     </div>
 
     <template v-else>
-      <!-- ═══ 顶栏: [任务切换] [模型 ▾] ... [队列/历史 (badge)] ═══ -->
+      <!-- ═══ 顶栏: [内容生成] | [任务切换] [模型 ▾] ... [队列/历史 (badge)] ═══ -->
       <div class="gen-header">
-        <div class="gen-header-left" :inert="frozen" :class="{ 'gen-header-left--frozen': frozen }">
-        <!-- 任务切换 (占位: 视频/编辑未上线为禁用项; 上线时接子路由) -->
-        <SegmentedControl
-          v-model="activeTask"
-          :options="taskOptions"
-          size="md"
-          class="gen-task-switch"
-        />
-        <!-- 架构选择器: 前置静音小标签提示控件语义 -->
-        <span class="gen-arch-label">{{ t('generate.header.model_label') }}</span>
-        <DropdownMenu
-          v-model="selectedModelKey"
-          :items="menuItems"
-          class="gen-arch-selector"
-        >
-          <template #default="{ open }">
+        <div class="gen-header-top">
+          <div class="page-title-wrap">
             <button
-              class="gen-arch-trigger"
-              :class="{ 'gen-arch-trigger--open': open }"
-              :aria-label="t('generate.header.model_selector_aria')"
+              type="button"
+              class="mobile-menu-btn"
+              :aria-label="app.mobileSidebarOpen ? 'Close menu' : 'Open menu'"
+              @click="app.toggleMobileSidebar()"
             >
-              <!-- 当前模型 logo(20px 底板) / 字母徽章 -->
-              <span
-                class="gen-arch-logo"
-                :class="{ 'gen-arch-logo--pad': currentConfig.logo }"
-              >
-                <img v-if="currentConfig.logo" :src="currentConfig.logo" :alt="currentConfig.label" />
-                <span v-else class="gen-arch-logo__letter">{{ currentConfig.label.slice(0, 2) }}</span>
-              </span>
-              <span class="gen-arch-trigger__label">{{ t(`generate.tabs.${currentConfig.key}`) }}</span>
-              <MsIcon name="expand_more" size="sm" color="var(--t3)" :class="{ 'gen-arch-trigger__icon--open': open }" />
+              <MsIcon name="menu" />
             </button>
-          </template>
-        </DropdownMenu>
+            <h1 class="page-title">{{ t('generate.title') }}</h1>
+          </div>
+          <!-- 右: 队列/历史按钮 (移动端在顶层右侧显示，桌面端靠最右) -->
+          <DrawerTrigger
+            class="gen-drawer-trigger"
+            icon="history"
+            :label="t('generate.header.queue_history')"
+            :badge="queueCount"
+            :pulse="isExecuting"
+            @click="openDrawer"
+          />
         </div>
 
-        <!-- 右: 队列/历史按钮 (ghost 风格, badge + 执行中 pulse) -->
-        <DrawerTrigger
-          icon="history"
-          :label="t('generate.header.queue_history')"
-          :badge="queueCount"
-          :pulse="isExecuting"
-          @click="openDrawer"
-        />
+        <div class="gen-header-controls" :inert="frozen" :class="{ 'gen-header-controls--frozen': frozen }">
+          <span class="page-title-divider" aria-hidden="true" />
+          <!-- 任务切换 (占位: 视频/编辑未上线为禁用项; 上线时接子路由) -->
+          <SegmentedControl
+            v-model="activeTask"
+            :options="taskOptions"
+            size="md"
+            class="gen-task-switch"
+          />
+          <!-- 架构选择器: 前置静音小标签提示控件语义 -->
+          <span class="gen-arch-label">{{ t('generate.header.model_label') }}</span>
+          <DropdownMenu
+            v-model="selectedModelKey"
+            :items="menuItems"
+            :back-label="t('generate.header.back_to_all_models')"
+            class="gen-arch-selector"
+          >
+            <template #default="{ open }">
+              <button
+                class="gen-arch-trigger"
+                :class="{ 'gen-arch-trigger--open': open }"
+                :aria-label="t('generate.header.model_selector_aria')"
+              >
+                <!-- 当前模型 logo(20px 底板) / 字母徽章 -->
+                <span
+                  class="gen-arch-logo"
+                  :class="{ 'gen-arch-logo--pad': currentConfig.logo }"
+                >
+                  <img v-if="currentConfig.logo" :src="currentConfig.logo" :alt="currentConfig.label" />
+                  <span v-else class="gen-arch-logo__letter">{{ currentConfig.label.slice(0, 2) }}</span>
+                </span>
+                <span class="gen-arch-trigger__label">{{ t(`generate.tabs.${currentConfig.key}`) }}</span>
+                <MsIcon name="expand_more" size="sm" color="var(--t3)" :class="{ 'gen-arch-trigger__icon--open': open }" />
+              </button>
+            </template>
+          </DropdownMenu>
+        </div>
       </div>
 
       <!-- Model Tabs (config-driven, 全量 v-show 挂载) -->
@@ -652,23 +695,40 @@ sse.start()
 }
 @keyframes gate-spin { to { transform: rotate(360deg); } }
 
-/* ═══ 顶栏: 去 border-bottom, 行高紧凑 ═══ */
+/* ═══ 顶栏: 桌面端单行 ═══ */
 .gen-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg-ambient);
+  background-attachment: fixed;
+  margin-top: calc(-1 * var(--page-body-pt));
+  padding-top: var(--page-body-pt);
+  padding-bottom: 8px;
+  margin-bottom: var(--sp-3);
+  mask-image: linear-gradient(to bottom, black calc(100% - 10px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 10px), transparent 100%);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
-  padding: 0;
-  margin-bottom: var(--sp-3);
-  /* 不再 border-bottom; 与下方内容用 margin 分隔 */
 }
 
-/* 架构选择器触发器 */
-.gen-header-left {
+.gen-header-top {
+  display: contents;
+}
+
+.gen-header-controls {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
   min-width: 0;
+  order: 2;
+}
+
+.gen-drawer-trigger {
+  order: 3;
+  margin-left: auto;
 }
 
 /* 架构选择器前置静音标签: 提示控件语义, 窄屏隐藏 */
@@ -680,7 +740,7 @@ sse.start()
 }
 
 /* inert 本身无视觉表现, 冻结区半透明 + 禁止光标 */
-.gen-header-left--frozen {
+.gen-header-controls--frozen {
   opacity: .45;
   cursor: not-allowed;
 }
@@ -690,12 +750,14 @@ sse.start()
 }
 
 /* 架构触发器的按钮规格 —— 与 ui/DrawerTrigger.vue 同底 (--bg3 底、1px --bd 边框、
-   var(--rs) 圆角、同高度同 padding、hover 边框变亮)。改这里要同步改那边。 */
+   var(--rs) 圆角、同高度同 padding、hover 边框变亮)。 */
 .gen-arch-trigger {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: 6px 12px;
+  padding: 0 12px;
+  height: 34px;
+  box-sizing: border-box;
   background: var(--bg3);
   border: 1px solid var(--bd);
   border-radius: var(--rs);
@@ -728,7 +790,9 @@ sse.start()
   flex-shrink: 0;
 }
 .gen-arch-logo--pad {
-  background: #f4f4f5;
+  background: var(--bg-logo-pad, #f1f3f5);
+  border: 1px solid var(--bd);
+  padding: 1px;
 }
 .gen-arch-logo img {
   width: 100%;
@@ -738,7 +802,7 @@ sse.start()
 .gen-arch-logo__letter {
   font-size: .7rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--t-inv);
   background: linear-gradient(135deg, var(--ac), var(--ac2));
   width: 100%;
   height: 100%;
@@ -757,48 +821,68 @@ sse.start()
   transform: rotate(180deg);
 }
 
-/* 队列/历史按钮的样式 (底色/badge/pulse) 已提取到 ui/DrawerTrigger.vue, 模型页共用 */
-
-/* ═══ 窄屏顶栏: 任务切换独占首行, 架构选择器 + 队列/历史同处次行 ═══
-   .gen-header-left 用 display:contents 把两个左侧控件直接交给顶栏网格排布 ——
-   它同时是 inert 冻结区的载体, 盒子消失后 opacity 落到子元素上 (inert 本身
-   与 display 无关, 照常生效)。 */
+/* ═══ 窄屏顶栏: 
+   Row 1: [ ☰ ] 内容生成 -------------- [ 队列/历史 (2) ]
+   Row 2: [ 任务切换 (通栏 3 等分) ]
+   Row 3: [ 模型架构选择器 (通栏全宽) ]
+═══ */
 @media (max-width: 768px) {
   .gen-header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     gap: var(--sp-2);
+    width: 100%;
   }
-  .gen-header-left {
-    display: contents;
+
+  .gen-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
   }
-  .gen-header-left--frozen > * {
-    opacity: .45;
+
+  .gen-drawer-trigger {
+    order: unset;
+    margin-left: auto;
   }
-  /* 任务切换: 首行通栏, 三段均分 */
+
+  .gen-header-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+    width: 100%;
+    order: unset;
+  }
+
+  .gen-header-controls .page-title-divider {
+    display: none;
+  }
+
+  .gen-arch-label {
+    display: none;
+  }
+
+  /* 任务切换: 通栏 3 等分 */
   .gen-task-switch {
-    grid-column: 1 / -1;
     display: flex;
     width: 100%;
-    align-self: stretch;
   }
   .gen-task-switch :deep(.seg-control__item) {
     flex: 1;
     justify-content: center;
     text-align: center;
   }
-  /* 静音标签在窄屏一律隐藏 (640 以下的规则上移到此) */
-  .gen-arch-label {
-    display: none;
-  }
-  /* 架构选择器占满次行剩余宽度, 队列按钮贴右 */
+
+  /* 架构选择器: 通栏全宽 */
   .gen-arch-selector {
-    justify-self: stretch;
-    min-width: 0;
+    display: flex;
+    width: 100%;
   }
   .gen-arch-trigger {
     width: 100%;
+    justify-content: space-between;
   }
   .gen-arch-trigger__label {
     flex: 1;
@@ -808,5 +892,4 @@ sse.start()
     text-overflow: ellipsis;
   }
 }
-
 </style>

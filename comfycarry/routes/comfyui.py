@@ -16,11 +16,23 @@ import json
 import queue
 import shlex
 import subprocess
+from urllib.parse import urlparse
 
 import requests
 from flask import Blueprint, Response, jsonify, request
 
 from ..config import COMFYUI_URL, COMFYUI_DIR, _set_config
+
+
+def comfyui_port() -> int:
+    """ComfyUI 端口, 来自应用变量 COMFYUI_URL (默认 8188)。"""
+    try:
+        p = urlparse(COMFYUI_URL).port
+        if p:
+            return p
+    except ValueError:
+        pass
+    return 8188
 from ..services.comfyui_params import (
     COMFYUI_PARAM_GROUPS,
     parse_comfyui_args,
@@ -49,7 +61,7 @@ def _err(key: str, status: int = 400, /, *, _extra: dict | None = None, **params
 def api_comfyui_status():
     """获取 ComfyUI 系统状态 + 当前启动参数"""
     result = {"online": False, "system": {},
-              "params": {}, "args": []}
+              "params": {}, "args": [], "port": comfyui_port()}
     try:
         resp = requests.get(f"{COMFYUI_URL}/system_stats", timeout=5)
         data = resp.json()

@@ -6,6 +6,7 @@ import Badge from '@/components/ui/Badge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import DownloadButton from '@/components/models/DownloadButton.vue'
 import MsIcon from '@/components/ui/MsIcon.vue'
+import UsageBar from '@/components/ui/UsageBar.vue'
 import { MODEL_CATEGORY_COLORS } from '@/utils/constants'
 import { fmtBytes, fmtSpeed } from '@/utils/format'
 
@@ -205,9 +206,7 @@ const showProgressRow = computed(() =>
         <span v-if="sizeText">{{ sizeText }}</span>
         <span>{{ progressPct.toFixed(1) }}%</span>
       </div>
-      <div class="dli-progress-bar">
-        <div class="dli-progress-fill" :style="{ width: `${progressPct}%` }" />
-      </div>
+      <UsageBar :percent="progressPct" :height="5" />
     </div>
   </div>
 </template>
@@ -310,24 +309,9 @@ const showProgressRow = computed(() =>
 
 .dli-progress-info {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  justify-content: space-between;
   font-size: var(--text-xs);
   color: var(--t2);
   margin-bottom: 3px;
-}
-
-.dli-progress-bar {
-  height: 5px;
-  background: var(--bg-in);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.dli-progress-fill {
-  height: 100%;
-  background: var(--ac);
-  border-radius: 3px;
-  transition: width .3s;
 }
 </style>

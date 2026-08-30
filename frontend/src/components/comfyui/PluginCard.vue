@@ -103,11 +103,11 @@ function displayVersion(): string {
 .plugin-item-meta > span { display: inline-flex; align-items: center; gap: 4px; }
 .plugin-item-actions { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
 .plugin-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
-.plugin-badge.installed { background: rgba(74, 222, 128, .15); color: var(--green); }
-.plugin-badge.update { background: rgba(251, 191, 36, .15); color: var(--amber); }
-.plugin-badge.disabled { background: rgba(152, 152, 176, .15); color: var(--t3); }
-.plugin-badge.not-installed { background: rgba(96, 165, 250, .15); color: var(--blue); }
-.plugin-badge.pending { background: rgba(251, 146, 60, .15); color: var(--orange, var(--amber)); }
+.plugin-badge.installed { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+.plugin-badge.update { background: color-mix(in srgb, var(--amber) 14%, transparent); color: var(--amber); }
+.plugin-badge.disabled { background: color-mix(in srgb, var(--t3) 14%, transparent); color: var(--t3); }
+.plugin-badge.not-installed { background: color-mix(in srgb, var(--blue) 14%, transparent); color: var(--blue); }
+.plugin-badge.pending { background: color-mix(in srgb, var(--amber) 14%, transparent); color: var(--amber); }
 .plugin-item-error { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; border-radius: var(--rs, 6px); background: color-mix(in srgb, var(--c-negative) 8%, var(--bg3)); border: 1px solid color-mix(in srgb, var(--c-negative) 25%, var(--bd)); }
 .plugin-item-error-msg { flex: 1; min-width: 0; font-size: .78rem; line-height: 1.45; color: var(--c-negative); word-break: break-word; white-space: pre-wrap; }
 </style>

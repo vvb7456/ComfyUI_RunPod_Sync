@@ -73,64 +73,65 @@
             /* 模块面板内容宽度: 生成页各模块面板 (CN/图生图/放大/面部) 与其顶部
                依赖状态条共用, 保证状态条与下方内容左右对齐 */
             --gen-module-w: 700px;
+            --text-xxs: .68rem;
             --text-xs: .72rem;
             --text-sm: .78rem;
             --text-base: .85rem;
             --text-md: .92rem;
             --text-lg: 1.05rem;
             --text-xl: 1.15rem;
-            /* ── Overlay & Inverse ── */
+            /* ── Overlay & Inverse & Logo Pad ── */
             --overlay: rgba(0, 0, 0, .5);
             --overlay-light: rgba(0, 0, 0, .35);
             --overlay-dark: rgba(0, 0, 0, .7);
             --t-inv: #fff;
             --t-inv-2: rgba(255, 255, 255, .8);
+            --bg-logo-pad: #f1f3f5;
+            /* ── Ambient Background Token (Dark) ── */
+            --bg-ambient:
+                radial-gradient(ellipse 80% 50% at 50% -10%, rgba(84, 112, 234, 0.12), transparent 70%),
+                radial-gradient(ellipse 55% 35% at 95% 15%, rgba(56, 189, 248, 0.04), transparent 60%),
+                var(--bg);
         }
 
-        /* ── Light Theme ── */
+        /* ── Light Theme (Cool Slate / 冰霜冷钛灰) ── */
         [data-theme="light"] {
-            --bg: #f0f0f4;
-            --bg2: #e6e6ec;
+            --bg: #ebf0f5;
+            --bg2: #e1e7ef;
             --bg3: #ffffff;
-            --bg4: #d8d8e0;
-            --bg-in: #f5f5f8;
-            --bd: #c8c8d4;
-            --bd-f: #3f57c9;
-            --t1: #1a1a2e;
-            --t2: #55556a;
-            --t3: #8888a0;
-            --ac: #3f57c9;
-            --ac2: #4a63d8;
-            --acg: rgba(63, 87, 201, 0.12);
-            --green: #16a34a;
+            --bg4: #d8e0eb;
+            --bg-in: #f4f7fb;
+            --bd: #cbd5e1;
+            --bd-f: #4f46e5;
+            --t1: #0f172a;
+            --t2: #475569;
+            --t3: #64748b;
+            --ac: #4f46e5;
+            --ac2: #6366f1;
+            --acg: rgba(79, 70, 229, 0.12);
+            --green: #10b981;
             --blue: #2563eb;
             --amber: #d97706;
             --red: #dc2626;
             --pink: #db2777;
-            --purple: #8b5cf6;
+            --purple: #7c3aed;
             --cyan: #0891b2;
-            --sh: 0 2px 12px rgba(0, 0, 0, 0.08);
-            --overlay: rgba(0, 0, 0, .45);
-            --overlay-light: rgba(0, 0, 0, .25);
-            --overlay-dark: rgba(0, 0, 0, .6);
+            --sh: 0 2px 12px rgba(15, 23, 42, 0.06);
+            --overlay: rgba(15, 23, 42, 0.45);
+            --overlay-light: rgba(15, 23, 42, 0.2);
+            --overlay-dark: rgba(15, 23, 42, 0.7);
             --t-inv: #fff;
             --t-inv-2: rgba(255, 255, 255, .8);
-        }
-
-        [data-theme="light"] ::-webkit-scrollbar-track {
-            background: var(--bg)
-        }
-
-        [data-theme="light"] ::-webkit-scrollbar-thumb {
-            background: var(--bd)
-        }
-
-        [data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-            background: var(--t3)
+            --bg-logo-pad: #ffffff;
+            /* ── Ambient Background Token (Light: 冰蓝通透天幕) ── */
+            --bg-ambient:
+                radial-gradient(ellipse 80% 50% at 50% -10%, rgba(79, 70, 229, 0.12), transparent 70%),
+                radial-gradient(ellipse 55% 35% at 95% 15%, rgba(14, 165, 233, 0.07), transparent 60%),
+                var(--bg);
         }
 
         [data-theme="light"] .modal-overlay {
-            background: rgba(0, 0, 0, .25)
+            background: var(--overlay-light)
         }
 
         [data-theme="light"] .log-panel {
@@ -138,12 +139,8 @@
             border-color: var(--bd)
         }
 
-        [data-theme="light"] .page-header {
-            background: rgba(240, 240, 244, .85)
-        }
-
         [data-theme="light"] .sidebar {
-            background: #e2e2ea
+            background: var(--bg2)
         }
 
         html {
@@ -189,6 +186,15 @@
             vertical-align: -3px;
             -webkit-font-smoothing: antialiased;
             font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+            text-decoration: none !important;
+        }
+
+        /* Prevent link underline from bleeding onto icons */
+        a .ms,
+        button .ms,
+        a:hover .ms,
+        button:hover .ms {
+            text-decoration: none !important;
         }
 
         .ms-xxs {
@@ -221,28 +227,37 @@
             font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 48;
         }
 
-        /* ── Global: Custom Scrollbar ── */
+        /* ── Global: Modern Auto-hiding Scrollbar ── */
         ::-webkit-scrollbar {
             width: 6px;
-            height: 6px
+            height: 6px;
         }
 
         ::-webkit-scrollbar-track {
-            background: transparent
+            background: transparent;
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--bd);
-            border-radius: 3px
+            background: transparent;
+            border-radius: 3px;
+            transition: background .2s ease;
+        }
+
+        *:hover::-webkit-scrollbar-thumb {
+            background: color-mix(in srgb, var(--bd) 85%, transparent);
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--t3)
+            background: var(--t3);
         }
 
         * {
             scrollbar-width: thin;
-            scrollbar-color: var(--bd) transparent
+            scrollbar-color: transparent transparent;
+        }
+
+        *:hover {
+            scrollbar-color: color-mix(in srgb, var(--bd) 85%, transparent) transparent;
         }
 
         /* Hide native browser password reveal button */
@@ -339,6 +354,15 @@
         @keyframes spin {
             to {
                 transform: rotate(360deg)
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.45;
+            }
+            50% {
+                opacity: 0.85;
             }
         }
 

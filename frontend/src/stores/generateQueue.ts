@@ -34,17 +34,34 @@ export const useGenerateQueueStore = defineStore('generateQueue', () => {
   // ── History ──
   const historyItems = ref<ComfyHistoryItem[]>([])
   const historyLoaded = ref(false)
+  const historyFailed = ref(false)
   const historyDirty = ref(false)
   // 排序方向 (与 HistoryPanel 双向绑定; API 响应默认 desc, sortAsc=true → 反转)
   const historySortAsc = ref(false)
 
+  let loadHistoryPromise: Promise<void> | null = null
+
   async function loadHistory() {
-    const d = await get<ComfyHistoryResponse>('/api/comfyui/history?max_items=200')
-    if (!d) return
-    const items = d.history || []
-    historyItems.value = historySortAsc.value ? [...items].reverse() : items
-    historyLoaded.value = true
-    historyDirty.value = false
+    if (loadHistoryPromise) return loadHistoryPromise
+    loadHistoryPromise = (async () => {
+      try {
+        const d = await get<ComfyHistoryResponse>('/api/comfyui/history?max_items=200')
+        if (!d) {
+          historyFailed.value = true
+          return
+        }
+        historyFailed.value = false
+        const items = d.history || []
+        historyItems.value = historySortAsc.value ? [...items].reverse() : items
+        historyLoaded.value = true
+        historyDirty.value = false
+      } catch {
+        historyFailed.value = true
+      } finally {
+        loadHistoryPromise = null
+      }
+    })()
+    return loadHistoryPromise
   }
 
   function markHistoryDirty() {
@@ -58,6 +75,7 @@ export const useGenerateQueueStore = defineStore('generateQueue', () => {
     loadQueue,
     historyItems,
     historyLoaded,
+    historyFailed,
     historyDirty,
     historySortAsc,
     loadHistory,

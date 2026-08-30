@@ -87,6 +87,8 @@ onMounted(() => {
 .wizard-app {
   width: 100%;
   min-height: 100vh;
+  background: var(--bg-ambient);
+  background-attachment: fixed;
 }
 
 .wizard-app__toolbar {

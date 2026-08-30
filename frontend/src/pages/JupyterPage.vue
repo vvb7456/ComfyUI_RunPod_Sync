@@ -9,12 +9,12 @@ import SecretInput from '@/components/ui/SecretInput.vue'
 import MsIcon from '@/components/ui/MsIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SectionHeader from '@/components/ui/SectionHeader.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import { useApiFetch } from '@/composables/useApiFetch'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useLogStream } from '@/composables/useLogStream'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { useAppStore } from '@/stores/app'
 import type { JupyterStatus } from '@/types/jupyter'
 import { fmtBytes } from '@/utils/format'
 import { apiErrorText, apiMessageText, type ApiErrorBody } from '@/utils/apiError'
@@ -25,6 +25,7 @@ const { t } = useI18n({ useScope: 'global' })
 const { get, post, del } = useApiFetch()
 const { toast } = useToast()
 const { confirm } = useConfirm()
+const app = useAppStore()
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -168,13 +169,24 @@ function terminalUrl(name: string): string | null {
   return `${base}/terminals/${encodeURIComponent(name)}${qs}`
 }
 
+const effectiveJupyterUrl = computed(() => {
+  if (jupyterUrl.value) return jupyterUrl.value
+  // 无隧道时兜底本地直连; 端口取自运行中进程检测 (status.port),
+  // 离线时 (含进程不存在的 null) 地址不可达, 不显示。
+  if (!isRunning.value || !status.value?.port) return ''
+  const host = window.location.hostname || 'localhost'
+  return `http://${host}:${status.value.port}`
+})
+
 /** Jupyter URL with token appended (if not already present) */
 const jupyterTokenUrl = computed(() => {
-  if (!jupyterUrl.value || !token.value) return ''
+  const base = effectiveJupyterUrl.value
+  if (!base) return ''
+  if (!token.value) return base
   // If URL already has token param, use as-is
-  if (jupyterUrl.value.includes('token=')) return jupyterUrl.value
-  const sep = jupyterUrl.value.includes('?') ? '&' : '?'
-  return `${jupyterUrl.value}${sep}token=${token.value}`
+  if (base.includes('token=')) return base
+  const sep = base.includes('?') ? '&' : '?'
+  return `${base}${sep}token=${token.value}`
 })
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -192,34 +204,44 @@ onUnmounted(() => {
 
 <template>
   <div class="jupyter-page">
-    <PageHeader
-      :title="t('jupyter.title')"
-      :service="status ? {
-        status: isRunning ? 'running' : 'stopped',
-        label: isRunning ? t('jupyter.status.running') : t('jupyter.status.stopped'),
-      } : undefined"
-      :launch="jupyterTokenUrl && isRunning
-        ? { href: jupyterTokenUrl, label: t('jupyter.token.open_jupyter') }
-        : undefined"
-    >
-      <template #actions>
-        <span v-if="status">
+    <div class="page-body">
+      <div class="page-header-row">
+        <div class="page-title-wrap">
+          <button
+            type="button"
+            class="mobile-menu-btn"
+            :aria-label="app.mobileSidebarOpen ? 'Close menu' : 'Open menu'"
+            @click="app.toggleMobileSidebar()"
+          >
+            <MsIcon name="menu" />
+          </button>
+          <h1 class="page-title">{{ t('jupyter.title') }}</h1>
+          <a
+            v-if="jupyterTokenUrl"
+            :href="jupyterTokenUrl"
+            target="_blank"
+            rel="noopener"
+            :title="t('jupyter.token.open_jupyter')"
+            class="title-launch-icon"
+          >
+            <MsIcon name="open_in_new" size="xs" />
+          </a>
+        </div>
+        <span class="page-header-row__spacer" />
+        <span v-if="status" class="page-actions">
           <template v-if="isRunning">
-            <BaseButton :disabled="actionLoading !== null" @click="jupyterAction('stop')">
+            <BaseButton size="sm" :disabled="actionLoading !== null" @click="jupyterAction('stop')">
               <MsIcon name="stop" /> {{ t('common.btn.stop') }}
             </BaseButton>
-            <BaseButton :disabled="actionLoading !== null" @click="jupyterAction('restart')">
+            <BaseButton size="sm" :disabled="actionLoading !== null" @click="jupyterAction('restart')">
               <MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}
             </BaseButton>
           </template>
-          <BaseButton v-else :disabled="actionLoading !== null" @click="jupyterAction('start')">
+          <BaseButton v-else size="sm" :disabled="actionLoading !== null" @click="jupyterAction('start')">
             <MsIcon name="play_arrow" /> {{ t('common.btn.start') }}
           </BaseButton>
         </span>
-      </template>
-    </PageHeader>
-
-    <div class="page-body">
+      </div>
       <!-- Status content -->
       <LoadingCenter v-if="statusLoading && !status">
         {{ t('common.status.loading') }}

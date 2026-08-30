@@ -72,10 +72,10 @@ const emit = defineEmits<{
   margin-bottom: var(--sp-3);
 }
 
-/* 吸附在 TabSwitcher 下方: header + TabSwitcher 总高 + 间距 (变量见 layout.css) */
+/* 吸附在 TabSwitcher 下方: .page-body 上方留白 + TabSwitcher 行高 + 间距 (变量见 layout.css) */
 .unsaved-banner--sticky {
   position: sticky;
-  top: calc(var(--page-header-h) + var(--page-body-pt) + var(--tab-switcher-row-h) + var(--sp-3));
+  top: calc(var(--page-body-pt) + var(--tab-switcher-row-h) + var(--sp-3));
   z-index: 9;
 }
 

@@ -5,6 +5,7 @@ import AppSidebar from '@/components/layout/AppSidebar.vue'
 import BackgroundRunBar from '@/components/layout/BackgroundRunBar.vue'
 import ToastContainer from '@/components/ui/ToastContainer.vue'
 import ConfirmProvider from '@/components/ui/ConfirmProvider.vue'
+import MsIcon from '@/components/ui/MsIcon.vue'
 import { provideToast } from '@/composables/useToast'
 import { useTheme } from '@/composables/useTheme'
 import { useAppStore } from '@/stores/app'
@@ -43,10 +44,12 @@ function onOverlayClick() {
   <AppSidebar />
 
   <main class="content" :class="{ 'sidebar-collapsed': app.sidebarCollapsed }">
-    <RouterView v-slot="{ Component }">
-      <KeepAlive include="GeneratePage">
-        <component :is="Component" />
-      </KeepAlive>
+    <RouterView v-slot="{ Component, route }">
+      <Transition name="page-fade" mode="out-in">
+        <KeepAlive include="GeneratePage">
+          <component :is="Component" :key="route.name || route.path" />
+        </KeepAlive>
+      </Transition>
     </RouterView>
   </main>
 

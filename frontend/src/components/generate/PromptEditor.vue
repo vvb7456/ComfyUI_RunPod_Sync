@@ -284,6 +284,8 @@ defineExpose({ insertAtCursor })
   text-transform: uppercase;
   letter-spacing: .04em;
   color: var(--t2);
+  min-height: 28px;
+  box-sizing: border-box;
 }
 .hdr-icon { font-size: .9rem; color: var(--t3); }
 

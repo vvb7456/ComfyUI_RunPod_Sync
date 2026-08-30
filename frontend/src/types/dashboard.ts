@@ -1,4 +1,11 @@
-// ── Dashboard Data Types ──────────────────────────────────────
+export type DashboardState =
+  | 'loading'
+  | 'ready'
+  | 'busy'
+  | 'starting'
+  | 'stopped'
+  | 'fault'
+  | 'unavailable'
 
 export interface SyncLogEntry {
   ts?: string
@@ -8,10 +15,25 @@ export interface SyncLogEntry {
 }
 
 export interface DownloadTask {
+  download_id?: string
   filename: string
   model_name?: string
   progress: number
-  speed: string
+  speed?: string | number
+  completed_bytes?: number
+  total_bytes?: number
+  status?: string
+}
+
+export interface ServiceEntry {
+  name: string
+  pm_id?: number
+  status?: string
+  uptime?: number | string
+  cpu?: number | string
+  memory?: number | string
+  restarts?: number
+  pid?: number
 }
 
 export interface OverviewData {
@@ -20,14 +42,20 @@ export interface OverviewData {
     version: string
     pm2_status: string
     pm2_uptime: number
+    pm2_restarts?: number
     queue_running: number
     queue_pending: number
     pytorch_version: string
     python_version: string
+    port: number
+    executing?: boolean
+    exec_start_time?: number
+    progress?: { value: number; max: number; percent?: number } | null
   }
   jupyter: {
     online: boolean
     pm2_status: string
+    port: number
   }
   sync: {
     worker_running: boolean
@@ -45,18 +73,12 @@ export interface OverviewData {
     active: DownloadTask[]
     queue_count: number
   }
-  services: Array<{
-    name: string
-    status: string
-    uptime: string
-    cpu: string
-    memory: string
-    restarts: number
-  }>
+  services: ServiceEntry[] | {
+    services?: ServiceEntry[]
+    error?: string
+  }
   version: { version: string }
 }
-
-export type ServiceEntry = OverviewData['services'][number]
 
 /** Fast-changing activity data from GET /api/activity (5s poll) */
 export interface ActivityData {
@@ -66,7 +88,7 @@ export interface ActivityData {
     queue_pending: number
     executing?: boolean
     exec_start_time?: number
-    progress?: { value: number; max: number }
+    progress?: { value: number; max: number; percent?: number } | null
   }
   downloads: {
     active_count: number

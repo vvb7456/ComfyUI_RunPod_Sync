@@ -6,25 +6,15 @@ defineOptions({ name: 'UsageBar' })
 const props = withDefaults(defineProps<{
   percent: number
   baseColor?: string
-  warning?: number
-  danger?: number
   height?: number
 }>(), {
-  baseColor: 'var(--green)',
-  warning: 70,
-  danger: 90,
-  height: 6,
+  baseColor: 'var(--ac)',
+  height: 5,
 })
 
 const clampedPercent = computed(() => {
   const value = Number.isFinite(props.percent) ? props.percent : 0
   return Math.max(0, Math.min(100, value))
-})
-
-const fillColor = computed(() => {
-  if (clampedPercent.value >= props.danger) return 'var(--red)'
-  if (clampedPercent.value >= props.warning) return 'var(--amber)'
-  return props.baseColor
 })
 
 const barStyle = computed(() => ({
@@ -44,19 +34,20 @@ const barStyle = computed(() => ({
   >
     <div
       class="usage-bar-fill"
-      :style="{ width: clampedPercent + '%', background: fillColor, borderRadius: barStyle.borderRadius }"
+      :style="{ width: clampedPercent + '%', background: baseColor, borderRadius: barStyle.borderRadius }"
     ></div>
   </div>
 </template>
 
 <style scoped>
 .usage-bar {
-  background: var(--bg);
+  background: color-mix(in srgb, var(--t3) 15%, transparent);
   overflow: hidden;
+  width: 100%;
 }
 
 .usage-bar-fill {
   height: 100%;
-  transition: width .5s ease, background-color .2s ease;
+  transition: width .4s ease;
 }
 </style>

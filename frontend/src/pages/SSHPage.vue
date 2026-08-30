@@ -13,7 +13,6 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import HelpTip from '@/components/ui/HelpTip.vue'
 import SectionHeader from '@/components/ui/SectionHeader.vue'
 import FormField from '@/components/form/FormField.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import { useApiFetch } from '@/composables/useApiFetch'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useLogStream } from '@/composables/useLogStream'
@@ -253,35 +252,28 @@ onUnmounted(() => {
 
 <template>
   <div class="ssh-page">
-    <PageHeader
-      :title="t('ssh.title')"
-      :service="status ? {
-        status: status.running ? 'running' : 'stopped',
-        label: status.running ? t('ssh.status.running') : t('ssh.status.stopped'),
-      } : undefined"
-    >
-      <template #actions>
-        <span v-if="status">
-          <BaseButton v-if="!status.running" :disabled="actionLoading !== null" @click="sshAction('start')">
-            <MsIcon name="play_arrow" /> {{ t('common.btn.start') }}
-          </BaseButton>
-          <template v-else>
-            <BaseButton :disabled="actionLoading !== null" @click="sshAction('stop')">
-              <MsIcon name="stop" /> {{ t('common.btn.stop') }}
-            </BaseButton>
-            <BaseButton :disabled="actionLoading !== null" @click="sshAction('restart')">
-              <MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}
-            </BaseButton>
-          </template>
-        </span>
-      </template>
-    </PageHeader>
-
     <div class="page-body">
-      <TabSwitcher :tabs="tabs" v-model="activeTab" @update:model-value="onTabChange" />
+      <TabSwitcher :title="t('ssh.title')" :tabs="tabs" v-model="activeTab" @update:model-value="onTabChange">
+        <template #extra>
+          <span v-if="status" class="page-actions">
+            <BaseButton v-if="!status.running" size="sm" :disabled="actionLoading !== null" @click="sshAction('start')">
+              <MsIcon name="play_arrow" /> {{ t('common.btn.start') }}
+            </BaseButton>
+            <template v-else>
+              <BaseButton size="sm" :disabled="actionLoading !== null" @click="sshAction('stop')">
+                <MsIcon name="stop" /> {{ t('common.btn.stop') }}
+              </BaseButton>
+              <BaseButton size="sm" :disabled="actionLoading !== null" @click="sshAction('restart')">
+                <MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}
+              </BaseButton>
+            </template>
+          </span>
+        </template>
+      </TabSwitcher>
 
       <!-- ─── Status Tab ───────────────────────────────────────────────── -->
-      <div v-show="activeTab === 'status'">
+      <!-- ─── Status Tab ───────────────────────────────────────────────── -->
+      <div v-show="activeTab === 'status'" class="tab-panel">
         <!-- Stat cards -->
         <LoadingCenter v-if="statusLoading && !status">
           {{ t('common.status.loading') }}
@@ -343,7 +335,7 @@ onUnmounted(() => {
       </div>
 
       <!-- ─── Config Tab ───────────────────────────────────────────────── -->
-      <div v-show="activeTab === 'config'" class="ssh-auth-grid">
+      <div v-show="activeTab === 'config'" class="tab-panel ssh-auth-grid">
         <!-- SSH Keys column -->
         <div>
           <SectionHeader icon="lock" flush>{{ t('ssh.keys.title') }}</SectionHeader>

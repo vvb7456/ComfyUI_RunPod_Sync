@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
+import { computed } from 'vue'
 import MsIcon from './MsIcon.vue'
+import { useAppStore } from '@/stores/app'
 
 defineOptions({ name: 'TabSwitcher' })
+
+const app = useAppStore()
 
 export interface TabItem {
   key: string
@@ -18,6 +21,7 @@ export interface TabItem {
 const props = withDefaults(defineProps<{
   tabs: TabItem[]
   modelValue: string
+  title?: string
   /** 页面级 tab 默认吸附在 .content 滚动容器顶部; modal 内部的 tab 传 false */
   sticky?: boolean
 }>(), {
@@ -28,12 +32,6 @@ const emit = defineEmits<{
   'update:modelValue': [key: string]
 }>()
 
-const rootRef = ref<HTMLElement | null>(null)
-const tabRefs = new Map<string, HTMLButtonElement>()
-const indicatorLeft = ref(0)
-const indicatorWidth = ref(0)
-const indicatorVisible = ref(false)
-
 const firstRightIndex = computed(() =>
   props.tabs.findIndex(t => t.align === 'right'),
 )
@@ -42,81 +40,59 @@ function selectTab(tab: TabItem) {
   if (tab.disabled || props.modelValue === tab.key) return
   emit('update:modelValue', tab.key)
 }
-
-function setTabRef(key: string, el: Element | ComponentPublicInstance | null) {
-  if (el instanceof HTMLButtonElement) {
-    tabRefs.set(key, el)
-  } else {
-    tabRefs.delete(key)
-  }
-}
-
-async function updateIndicator() {
-  await nextTick()
-  const activeTab = tabRefs.get(props.modelValue)
-  if (!activeTab) {
-    indicatorVisible.value = false
-    return
-  }
-  indicatorLeft.value = activeTab.offsetLeft
-  indicatorWidth.value = activeTab.offsetWidth
-  indicatorVisible.value = true
-}
-
-const indicatorStyle = computed(() => ({
-  width: `${indicatorWidth.value}px`,
-  transform: `translateX(${indicatorLeft.value}px)`,
-  opacity: indicatorVisible.value ? '1' : '0',
-}))
-
-watch(
-  () => [props.modelValue, props.tabs.map(tab => `${tab.key}:${tab.label}:${tab.badge ?? ''}:${tab.disabled ? '1' : '0'}`).join('|')],
-  () => { updateIndicator() },
-  { immediate: true },
-)
-
-onMounted(() => {
-  window.addEventListener('resize', updateIndicator)
-  updateIndicator()
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateIndicator)
-})
 </script>
 
 <template>
   <div
-    ref="rootRef"
     class="tab-switcher"
     :class="{ 'tab-switcher--sticky': props.sticky }"
     role="tablist"
   >
-    <button
-      v-for="(tab, idx) in tabs"
-      :key="tab.key"
-      type="button"
-      :ref="el => setTabRef(tab.key, el)"
-      class="tab-switcher__tab"
-      :class="{
-        'tab-switcher__tab--active': modelValue === tab.key,
-        'tab-switcher__tab--disabled': tab.disabled,
-        'tab-switcher__tab--right-first': idx === firstRightIndex,
-      }"
-      :disabled="tab.disabled"
-      :aria-selected="modelValue === tab.key"
-      @click="selectTab(tab)"
-    >
-      <MsIcon
-        v-if="tab.icon"
-        :name="tab.icon"
-        size="sm"
-      />
-      <span>{{ tab.label }}</span>
-      <span v-if="tab.badge" class="tab-switcher__badge">{{ tab.badge }}</span>
-    </button>
-    <span class="tab-switcher__indicator" :style="indicatorStyle" />
-    <slot />
+    <div v-if="title || $slots['title-extra']" class="tab-switcher__title-group">
+      <div class="tab-switcher__title-wrap">
+        <button
+          type="button"
+          class="mobile-menu-btn"
+          :aria-label="app.mobileSidebarOpen ? 'Close menu' : 'Open menu'"
+          @click="app.toggleMobileSidebar()"
+        >
+          <MsIcon name="menu" />
+        </button>
+        <h1 v-if="title" class="tab-switcher__title">{{ title }}</h1>
+        <slot name="title-extra" />
+      </div>
+      <span class="tab-switcher__title-divider" aria-hidden="true" />
+    </div>
+
+    <div class="tab-switcher__tabs">
+      <button
+        v-for="(tab, idx) in tabs"
+        :key="tab.key"
+        type="button"
+        class="tab-switcher__tab"
+        :class="{
+          'tab-switcher__tab--active': modelValue === tab.key,
+          'tab-switcher__tab--disabled': tab.disabled,
+          'tab-switcher__tab--right-first': idx === firstRightIndex,
+        }"
+        :disabled="tab.disabled"
+        :aria-selected="modelValue === tab.key"
+        @click="selectTab(tab)"
+      >
+        <MsIcon
+          v-if="tab.icon"
+          :name="tab.icon"
+          size="sm"
+        />
+        <span>{{ tab.label }}</span>
+        <span v-if="tab.badge" class="tab-switcher__badge">{{ tab.badge }}</span>
+      </button>
+    </div>
+
+    <div v-if="$slots.extra || $slots.default" class="tab-switcher__extra">
+      <slot name="extra" />
+      <slot />
+    </div>
   </div>
 </template>
 
@@ -125,28 +101,73 @@ onBeforeUnmount(() => {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0;
-  border-bottom: 1px solid var(--bd);
+  gap: 6px;
   margin-bottom: var(--sp-4);
   overflow-x: auto;
   scrollbar-width: none;
-  /* iOS: only allow horizontal panning on the tab bar. Trade-off: a touch
-     that lands on the tab bar cannot be used to scroll the page vertically.
-     In return, iOS no longer interprets diagonal drags as a 2D rubber-band
-     drag of the tab content. */
   touch-action: pan-x;
+  min-height: 38px;
 }
 
-/* 页面级 tab 吸附在 .page-header (sticky, 高 --page-header-h) 之下。
-   用负 margin 吃掉 .page-body 的 padding-top, 同时 padding-top 保留原间距,
-   让 sticky 时背景能向上延伸到 header 底边, 不漏出下方滚动内容。 */
 .tab-switcher--sticky {
   position: sticky;
-  top: var(--page-header-h);
-  z-index: 10;
-  background: var(--bg);
+  top: 0;
+  z-index: 20;
+  background: var(--bg-ambient);
+  background-attachment: fixed;
   margin-top: calc(-1 * var(--page-body-pt));
   padding-top: var(--page-body-pt);
+  padding-bottom: 8px;
+  /* 底部向下的柔和渐变消隐蒙版：使得穿过的下方内容自然淡出消失 */
+  mask-image: linear-gradient(to bottom, black calc(100% - 10px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 10px), transparent 100%);
+}
+
+.tab-switcher__title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.tab-switcher__title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tab-switcher__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  color: var(--t1);
+  margin: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tab-switcher__title-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--bd);
+  opacity: .8;
+}
+
+.tab-switcher__tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tab-switcher__extra {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-right: var(--sp-1);
+  flex-shrink: 0;
 }
 
 .tab-switcher::-webkit-scrollbar {
@@ -154,16 +175,16 @@ onBeforeUnmount(() => {
 }
 
 .tab-switcher__tab {
-  padding: 10px 18px;
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
   flex-shrink: 0;
   cursor: pointer;
-  font-size: .88rem;
+  font-size: .86rem;
   font-weight: 500;
   color: var(--t2);
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
-  transition: all .15s;
+  transition: all .15s ease;
   user-select: none;
   display: inline-flex;
   align-items: center;
@@ -175,10 +196,18 @@ onBeforeUnmount(() => {
 
 .tab-switcher__tab:hover {
   color: var(--t1);
+  background: color-mix(in srgb, var(--t1) 6%, transparent);
 }
 
 .tab-switcher__tab--active {
+  color: var(--t1);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--ac) 12%, transparent);
+}
+
+[data-theme="light"] .tab-switcher__tab--active {
   color: var(--ac);
+  background: color-mix(in srgb, var(--ac) 14%, transparent);
 }
 
 .tab-switcher__tab:disabled,
@@ -197,30 +226,81 @@ onBeforeUnmount(() => {
   font-size: .68rem;
   padding: 1px 6px;
   border-radius: 10px;
-  margin-left: 5px;
+  margin-left: 2px;
 }
 
 .tab-switcher__tab :deep(.ms) {
+  font-size: 18px;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+}
+
+.tab-switcher__tab--active :deep(.ms) {
+  color: var(--ac);
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 18;
+}
+
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--t2);
+  cursor: pointer;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: var(--r-xs, 4px);
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color .15s ease, background .15s ease;
+  line-height: 1;
+}
+
+.mobile-menu-btn:hover {
+  color: var(--t1);
+  background: color-mix(in srgb, var(--t1) 6%, transparent);
+}
+
+.mobile-menu-btn :deep(.ms) {
   font-size: 20px;
-  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
 }
 
-.tab-switcher__indicator {
-  position: absolute;
-  left: 0;
-  bottom: -1px;
-  height: 2px;
-  background: var(--ac);
-  pointer-events: none;
-  transition:
-    transform .34s cubic-bezier(0.22, 1, 0.36, 1),
-    width .34s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity .18s ease;
-}
+@media (max-width: 768px) {
+  .tab-switcher {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 0;
+    min-height: auto;
+  }
 
-@media (prefers-reduced-motion: reduce) {
-  .tab-switcher__indicator {
-    transition: none;
+  .tab-switcher__title-group {
+    order: 1;
+    margin-right: auto;
+    gap: 6px;
+  }
+
+  .tab-switcher__title-divider {
+    display: none;
+  }
+
+  .tab-switcher__extra {
+    order: 2;
+    margin-left: auto;
+    padding-right: 0;
+  }
+
+  .tab-switcher__tabs {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    gap: 4px;
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
   }
 }
 </style>

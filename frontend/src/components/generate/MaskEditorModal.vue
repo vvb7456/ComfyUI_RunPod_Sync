@@ -209,6 +209,6 @@ function onCancel() {
   border: 1px solid var(--bd);
   border-radius: var(--r-md);
   overflow: hidden;
-  background: #1a1a2e;
+  background: var(--bg-in);
 }
 </style>

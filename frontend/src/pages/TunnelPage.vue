@@ -14,7 +14,6 @@ import AddCard from '@/components/ui/AddCard.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import ModeCard from '@/components/ui/ModeCard.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import MsIcon from '@/components/ui/MsIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import HelpTip from '@/components/ui/HelpTip.vue'
@@ -334,33 +333,21 @@ const connInfo = computed(() => {
 </script>
 
 <template>
-  <PageHeader
-    :title="t('tunnel.title')"
-    :service="data ? {
-      status: !data.configured && data.tunnel_mode !== 'public'
-        ? 'unconfigured'
-        : (data.cloudflared === 'online' ? 'running' : 'stopped'),
-      label: !data.configured && data.tunnel_mode !== 'public'
-        ? t('tunnel.status.unconfigured')
-        : (data.cloudflared === 'online' ? t('tunnel.status.running') : t('tunnel.status.stopped')),
-    } : undefined"
-  >
-    <template #actions>
-      <span v-if="data && (data.configured || data.tunnel_mode === 'public')">
-        <template v-if="tunnelStatus === 'online' || tunnelStatus === 'connecting'">
-          <BaseButton @click="tunnelStop"><MsIcon name="stop" /> {{ t('common.btn.stop') }}</BaseButton>
-          <BaseButton @click="() => tunnelRestart()"><MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}</BaseButton>
-        </template>
-        <BaseButton v-else @click="tunnelStartByMode"><MsIcon name="play_arrow" /> {{ t('common.btn.start') }}</BaseButton>
-      </span>
-    </template>
-  </PageHeader>
-
   <div class="page-body">
-    <TabSwitcher :model-value="activeTab" :tabs="tabs" @update:modelValue="switchTab" />
+    <TabSwitcher :title="t('tunnel.title')" :model-value="activeTab" :tabs="tabs" @update:modelValue="switchTab">
+      <template #extra>
+        <span v-if="data && (data.configured || data.tunnel_mode === 'public')" class="page-actions">
+          <template v-if="tunnelStatus === 'online' || tunnelStatus === 'connecting'">
+            <BaseButton size="sm" @click="tunnelStop"><MsIcon name="stop" /> {{ t('common.btn.stop') }}</BaseButton>
+            <BaseButton size="sm" @click="() => tunnelRestart()"><MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}</BaseButton>
+          </template>
+          <BaseButton v-else size="sm" @click="tunnelStartByMode"><MsIcon name="play_arrow" /> {{ t('common.btn.start') }}</BaseButton>
+        </span>
+      </template>
+    </TabSwitcher>
 
     <!-- ===== Status Tab ===== -->
-    <div v-show="activeTab === 'status'">
+    <div v-show="activeTab === 'status'" class="tab-panel">
       <!-- Loading state -->
       <LoadingCenter v-if="!data" style="padding:60px 0" />
 
@@ -473,7 +460,7 @@ const connInfo = computed(() => {
     </div>
 
     <!-- ===== Config Tab ===== -->
-    <div v-show="activeTab === 'config'">
+    <div v-show="activeTab === 'config'" class="tab-panel">
       <!-- Mode selector -->
       <div class="mode-grid">
         <!-- Public card -->
@@ -621,7 +608,7 @@ const connInfo = computed(() => {
 .tunnel-svc-row { display: flex; align-items: center; gap: 8px; }
 
 /* Vue-unique: custom service indicator */
-.custom-badge { font-size: .6rem; background: var(--ac); color: #000; padding: 1px 5px; border-radius: 3px; }
+.custom-badge { font-size: .6rem; background: var(--ac); color: var(--t-inv); padding: 1px 5px; border-radius: 3px; }
 
 /* Vue-unique: mode selection grid */
 .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

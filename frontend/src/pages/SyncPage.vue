@@ -20,7 +20,6 @@ import AddCard from '@/components/ui/AddCard.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import UsageBar from '@/components/ui/UsageBar.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import MsIcon from '@/components/ui/MsIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import HelpTip from '@/components/ui/HelpTip.vue'
@@ -562,26 +561,18 @@ async function uploadRcloneFile(e: Event) {
 </script>
 
 <template>
-  <PageHeader
-    :title="t('sync.title')"
-    :service="{
-      status: workerRunning ? 'running' : 'stopped',
-      label: workerRunning ? t('sync.worker.running') : t('sync.worker.stopped'),
-    }"
-  >
-    <template #actions>
-      <span>
-        <BaseButton v-if="!workerRunning" :disabled="workerLoading" @click="workerAction('start')"><MsIcon name="play_arrow" /> {{ t('common.btn.start') }}</BaseButton>
-        <template v-else>
-          <BaseButton :disabled="workerLoading" @click="workerAction('stop')"><MsIcon name="stop" /> {{ t('common.btn.stop') }}</BaseButton>
-          <BaseButton :disabled="workerLoading" @click="workerRestart()"><MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}</BaseButton>
-        </template>
-      </span>
-    </template>
-  </PageHeader>
-
   <div class="page-body">
-    <TabSwitcher :model-value="activeTab" :tabs="tabs" @update:modelValue="switchTab" />
+    <TabSwitcher :title="t('sync.title')" :model-value="activeTab" :tabs="tabs" @update:modelValue="switchTab">
+      <template #extra>
+        <span class="page-actions">
+          <BaseButton v-if="!workerRunning" size="sm" :disabled="workerLoading" @click="workerAction('start')"><MsIcon name="play_arrow" /> {{ t('common.btn.start') }}</BaseButton>
+          <template v-else>
+            <BaseButton size="sm" :disabled="workerLoading" @click="workerAction('stop')"><MsIcon name="stop" /> {{ t('common.btn.stop') }}</BaseButton>
+            <BaseButton size="sm" :disabled="workerLoading" @click="workerRestart()"><MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}</BaseButton>
+          </template>
+        </span>
+      </template>
+    </TabSwitcher>
 
     <!-- 未保存守卫 banner (config tab 表单 dirty 时显示) -->
     <UnsavedBanner
@@ -595,7 +586,7 @@ async function uploadRcloneFile(e: Event) {
     />
 
     <!-- ===== Activity Tab ===== -->
-    <div v-show="activeTab === 'activity'">
+    <div v-show="activeTab === 'activity'" class="tab-panel">
       <SyncActivityTab
         :log-lines="logLines"
         :log-status="logStatus"
@@ -610,7 +601,7 @@ async function uploadRcloneFile(e: Event) {
     </div>
 
     <!-- ===== Storage & Rules Tab ===== -->
-    <div v-show="activeTab === 'storage'">
+    <div v-show="activeTab === 'storage'" class="tab-panel">
       <SectionHeader icon="storage" flush>{{ t('sync.tabs.remotes_section') }}</SectionHeader>
       <div class="sync-remotes-grid" style="margin-top:0">
         <div v-for="remote in remotes" :key="remote.name" class="sync-remote-card">
@@ -699,7 +690,7 @@ async function uploadRcloneFile(e: Event) {
     </div>
 
     <!-- ===== Clients (Companion) Tab ===== -->
-    <div v-show="activeTab === 'clients'">
+    <div v-show="activeTab === 'clients'" class="tab-panel">
       <CompanionPanel
         :clients="companionClients"
         :serve="companionServe"
@@ -710,7 +701,7 @@ async function uploadRcloneFile(e: Event) {
     </div>
 
     <!-- ===== Config Tab ===== -->
-    <div v-show="activeTab === 'config'">
+    <div v-show="activeTab === 'config'" class="tab-panel">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <BaseCard density="roomy">
           <FormField :label="t('sync.config.min_age.label')" :hint="t('sync.config.min_age.desc')" layout="horizontal">

@@ -48,63 +48,77 @@ echo "  -> ComfyCarry 依赖已预装"
 echo "  -> Cloudflared 已预装"
 
 # ── 下载 ComfyCarry 文件 ──
+# 更新源为 GitHub latest Release (完整部署包, 由 release.yml 发布),
+# main 分支 push 不影响已部署实例 —— commit 与 release 解耦
 DASHBOARD_DIR="/workspace/ComfyCarry"
 REPO_OWNER="vvb7456"
 REPO_NAME="ComfyCarry"
-BRANCH="main"
+RELEASE_ASSET="comfycarry-dist.tar.gz"
+LATEST_RELEASE_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
 
 mkdir -p "$DASHBOARD_DIR"
 
+# 拉取一次 latest Release 元数据, 下载地址与 .version 共用 (限流 60 req/h, 不要重复请求)
+RELEASE_JSON=$(wget -qO- "$LATEST_RELEASE_API" 2>/dev/null || true)
+
 if [ ! -f "$DASHBOARD_DIR/workspace_manager.py" ] || [ "${FORCE_UPDATE:-false}" = "true" ]; then
-    echo "  -> 下载 ComfyCarry..."
-    TARBALL_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/heads/${BRANCH}.tar.gz"
-    TMP_TAR="/tmp/comfycarry_download.tar.gz"
-    TMP_EXTRACT="/tmp/comfycarry_extract"
+    echo "  -> 下载 ComfyCarry (latest Release)..."
+    DIST_URL=$(echo "$RELEASE_JSON" | python3 -c "
+import sys, json
+try:
+    rel = json.load(sys.stdin)
+    for a in rel.get('assets', []):
+        if a.get('name') == '${RELEASE_ASSET}':
+            print(a.get('browser_download_url', ''))
+            break
+except Exception:
+    pass
+" 2>/dev/null || true)
 
-    wget -q -O "$TMP_TAR" "$TARBALL_URL"
-    rm -rf "$TMP_EXTRACT"
-    mkdir -p "$TMP_EXTRACT"
-    tar xzf "$TMP_TAR" -C "$TMP_EXTRACT"
+    if [ -n "$DIST_URL" ]; then
+        TMP_TAR="/tmp/comfycarry_dist.tar.gz"
+        TMP_EXTRACT="/tmp/comfycarry_extract"
 
-    # 从解压目录复制所需文件
-    EXTRACTED="${TMP_EXTRACT}/${REPO_NAME}-${BRANCH}"
-    for f in workspace_manager.py favicon.ico; do
-        [ -f "$EXTRACTED/$f" ] && cp "$EXTRACTED/$f" "$DASHBOARD_DIR/$f"
-    done
-    # 复制 comfycarry/ Python 包
-    if [ -d "$EXTRACTED/comfycarry" ]; then
-        rm -rf "$DASHBOARD_DIR/comfycarry"
-        cp -r "$EXTRACTED/comfycarry" "$DASHBOARD_DIR/comfycarry"
-    fi
-    # 下载前端构建产物 (从 GitHub Release — dist 已从 git 移除, 不在 tarball 中)
-    echo "  -> 下载前端构建产物..."
-    DIST_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/frontend-dist/frontend-dist.tar.gz"
-    mkdir -p "$DASHBOARD_DIR/static"
-    if wget -q -O /tmp/frontend-dist.tar.gz "$DIST_URL"; then
-        tar xzf /tmp/frontend-dist.tar.gz -C "$DASHBOARD_DIR/static/"
-        rm -f /tmp/frontend-dist.tar.gz
-        echo "  ✅ 前端构建产物已下载"
+        wget -q -O "$TMP_TAR" "$DIST_URL"
+        rm -rf "$TMP_EXTRACT"
+        mkdir -p "$TMP_EXTRACT"
+        tar xzf "$TMP_TAR" -C "$TMP_EXTRACT"
+
+        # 部署包顶层目录为 comfycarry/, 内容直接覆盖到面板根
+        EXTRACTED="${TMP_EXTRACT}/comfycarry"
+        if [ -d "$EXTRACTED" ]; then
+            cp -r "$EXTRACTED/." "$DASHBOARD_DIR/"
+            echo "  ✅ ComfyCarry 文件已更新"
+        else
+            echo "  ⚠️ 部署包结构异常, 请检查 Release asset"
+        fi
+
+        rm -rf "$TMP_TAR" "$TMP_EXTRACT"
     else
-        echo "  ⚠️ 前端构建产物下载失败，请检查 Release 是否存在"
+        echo "  ⚠️ 未找到 latest Release (${RELEASE_ASSET}), 请检查是否已发布 Release"
     fi
-    # 复制 comfycarry_ws_broadcast/ 自定义节点
-    if [ -d "$EXTRACTED/comfycarry_ws_broadcast" ]; then
-        rm -rf "$DASHBOARD_DIR/comfycarry_ws_broadcast"
-        cp -r "$EXTRACTED/comfycarry_ws_broadcast" "$DASHBOARD_DIR/comfycarry_ws_broadcast"
-    fi
-
-    rm -rf "$TMP_TAR" "$TMP_EXTRACT"
-    echo "  ✅ ComfyCarry 文件已更新"
 else
     echo "  -> ComfyCarry 文件已存在，跳过下载 (设置 FORCE_UPDATE=true 强制更新)"
 fi
 
-# Write version info
-COMMIT_HASH=$(wget -qO- "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits/${BRANCH}" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('sha',''))" 2>/dev/null || true)
+# Write version info (从 latest Release 元数据读取)
+# 注意: target_commitish 是分支名而非 SHA; 真实 commit 用 /commits/<tag>
+# (对 lightweight/annotated tag 均解析到其指向的 commit, 同 update.py Step 6)
+RELEASE_TAG=$(echo "$RELEASE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || true)
+COMMIT_HASH=""
+if [ -n "$RELEASE_TAG" ]; then
+    COMMIT_HASH=$(wget -qO- "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits/${RELEASE_TAG}" 2>/dev/null | python3 -c "
+import sys, json
+try:
+    print(json.load(sys.stdin).get('sha', ''))
+except Exception:
+    pass
+" 2>/dev/null || true)
+fi
 APP_VERSION=$(python3 -c "import re; m=re.search(r'APP_VERSION\s*=\s*\"([^\"]+)\"', open('$DASHBOARD_DIR/comfycarry/config.py').read()); print(m.group(1) if m else 'unknown')" 2>/dev/null || echo "unknown")
 cat > "$DASHBOARD_DIR/.version" <<EOF
-version=${APP_VERSION}
-branch=${BRANCH}
+version=${RELEASE_TAG:-$APP_VERSION}
+branch=
 commit=${COMMIT_HASH}
 EOF
 

@@ -1,42 +1,91 @@
 {
   "title": "Overview",
-  "metrics": {
-    "title": "Performance Metrics",
-    "memory": "Memory",
-    "disk": "Disk",
-    "free": "free"
+  "refresh": "Refresh",
+  "taglines": {
+    "tasks": "Real-time Tasks",
+    "services": "Infrastructure",
+    "recent": "Gallery",
+    "diagnostics": "Environment"
+  },
+  "hero": {
+    "ready_title": "Workspace Ready",
+    "busy_title": "Generating",
+    "busy_sub_no_progress": "Generating · Queue {count}",
+    "starting_title": "Starting ComfyUI",
+    "starting_sub": "Launching ComfyUI service...",
+    "stopped_title": "ComfyUI Stopped",
+    "stopped_sub": "Service is currently not running",
+    "fault_title": "ComfyUI Failed",
+    "fault_sub": "Process exited unexpectedly, check logs or retry",
+    "unavailable_title": "Service Unavailable",
+    "unavailable_sub": "Unable to connect to ComfyCarry backend"
+  },
+  "actions": {
+    "start_generate": "Start Generating",
+    "view_progress": "View Progress",
+    "open_comfyui": "Open ComfyUI",
+    "start_comfyui": "Start ComfyUI",
+    "starting": "Starting...",
+    "view_status": "View Status",
+    "view_logs": "View Logs",
+    "retry_start": "Retry Start",
+    "retry": "Retry",
+    "view_all": "View All",
+    "open_history": "Open History",
+    "open": "Open",
+    "manage": "Manage",
+    "config": "Config",
+    "view": "View",
+    "start": "Start"
+  },
+  "current": {
+    "title": "In Progress",
+    "idle": "Idle",
+    "idle_desc": "Queue is idle. No tasks currently executing.",
+    "downloading": "Downloading Model"
   },
   "services": {
+    "title": "Services & Connections",
+    "comfyui": "ComfyUI",
+    "jupyter": "Jupyter",
+    "sync": "Cloud Sync",
+    "tunnel": "Tunnel",
+    "generating": "Generating",
+    "online": "Online",
+    "starting": "Starting",
+    "connecting": "Connecting",
+    "stopped": "Stopped",
+    "offline": "Offline",
+    "error": "Error",
+    "not_configured": "Not configured",
+    "sync_running": "Running",
+    "action_sent": "{action} action sent",
     "name": "Service",
     "status": "Status",
     "uptime": "Uptime",
     "restarts": "Restarts",
-    "actions": "Actions",
-    "action_sent": "{action} action sent"
+    "actions_col": "Actions"
   },
-  "status_bar": {
-    "all_good": "All systems ready, waiting for tasks",
-    "open_comfyui": "Open ComfyUI in new window",
-    "open_jupyter": "Open JupyterLab in new window",
-    "queue_info": "Queue: {running} running / {pending} waiting",
-    "sync_monitoring": "Sync Worker monitoring ({count} rules)",
-    "sync_not_started": "Sync not started",
-    "downloads_waiting": "{count} downloads waiting",
-    "downloading": "Downloading..."
+  "gpu": {
+    "title": "GPU VRAM",
+    "used_pct": "{pct}% used",
+    "available": "{vram} free",
+    "not_detected": "No GPU detected"
   },
-  "status": {
-    "online": "Online",
-    "starting": "Starting",
-    "offline": "Offline",
-    "queue": "Queue",
-    "running": "Running",
-    "not_configured": "Not configured",
-    "connecting": "Connecting",
-    "queue_idle": "Queue idle"
+  "recent": {
+    "title": "Recent Generations",
+    "empty": "No outputs yet",
+    "unavailable": "Unavailable",
+    "retry": "Retry"
   },
-  "sections": {
-    "activity": "Activity",
-    "services": "Services",
-    "environment": "Environment"
+  "diagnostics": {
+    "title": "Detailed Status & Environment",
+    "summary": "{online} / {total} Services Online"
+  },
+  "time": {
+    "just_now": "Just now",
+    "mins_ago": "{n}m ago",
+    "hours_ago": "{n}h ago",
+    "yesterday": "Yesterday"
   }
 }

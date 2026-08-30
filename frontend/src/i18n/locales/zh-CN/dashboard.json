@@ -1,42 +1,91 @@
 {
   "title": "总览",
-  "metrics": {
-    "title": "性能指标",
-    "memory": "内存",
-    "disk": "磁盘",
-    "free": "空闲"
+  "refresh": "刷新",
+  "taglines": {
+    "tasks": "实时任务",
+    "services": "基础服务",
+    "recent": "产物画廊",
+    "diagnostics": "系统环境"
+  },
+  "hero": {
+    "ready_title": "工作区就绪",
+    "busy_title": "正在生成",
+    "busy_sub_no_progress": "生成中 · 队列 {count}",
+    "starting_title": "ComfyUI 启动中",
+    "starting_sub": "正在拉起 ComfyUI 服务...",
+    "stopped_title": "ComfyUI 已停止",
+    "stopped_sub": "服务当前未运行",
+    "fault_title": "ComfyUI 启动失败",
+    "fault_sub": "进程异常退出，请查看日志或重试",
+    "unavailable_title": "服务暂不可用",
+    "unavailable_sub": "无法连接到 ComfyCarry 服务"
+  },
+  "actions": {
+    "start_generate": "开始生成",
+    "view_progress": "查看生成进度",
+    "open_comfyui": "打开 ComfyUI",
+    "start_comfyui": "启动 ComfyUI",
+    "starting": "启动中...",
+    "view_status": "查看状态",
+    "view_logs": "查看日志",
+    "retry_start": "重试启动",
+    "retry": "重试",
+    "view_all": "查看全部",
+    "open_history": "打开历史",
+    "open": "打开",
+    "manage": "管理",
+    "config": "配置",
+    "view": "查看",
+    "start": "启动"
+  },
+  "current": {
+    "title": "正在进行",
+    "idle": "空闲",
+    "idle_desc": "当前队列空闲，暂无执行中任务",
+    "downloading": "下载模型"
   },
   "services": {
+    "title": "服务与连接",
+    "comfyui": "ComfyUI",
+    "jupyter": "Jupyter",
+    "sync": "云同步",
+    "tunnel": "隧道",
+    "generating": "生成中",
+    "online": "在线",
+    "starting": "启动中",
+    "connecting": "连接中",
+    "stopped": "已停止",
+    "offline": "离线",
+    "error": "错误",
+    "not_configured": "未配置",
+    "sync_running": "运行",
+    "action_sent": "已发送 {action} 操作",
     "name": "服务",
     "status": "状态",
     "uptime": "运行时间",
     "restarts": "重启",
-    "actions": "操作",
-    "action_sent": "已发送 {action} 操作"
+    "actions_col": "操作"
   },
-  "status_bar": {
-    "all_good": "一切就绪，等待任务",
-    "open_comfyui": "在新窗口打开 ComfyUI",
-    "open_jupyter": "在新窗口打开 JupyterLab",
-    "queue_info": "队列：{running} 运行 / {pending} 等待",
-    "sync_monitoring": "Sync Worker 监控中 ({count} 条规则)",
-    "sync_not_started": "Sync 未启动",
-    "downloads_waiting": "{count} 个下载等待中",
-    "downloading": "下载中..."
+  "gpu": {
+    "title": "GPU 显存",
+    "used_pct": "{pct}% 已用",
+    "available": "{vram} 可用",
+    "not_detected": "未检测到 GPU"
   },
-  "status": {
-    "online": "在线",
-    "starting": "启动中",
-    "offline": "离线",
-    "queue": "队列",
-    "running": "运行",
-    "not_configured": "未配置",
-    "connecting": "连接中",
-    "queue_idle": "队列空闲"
+  "recent": {
+    "title": "最近生成",
+    "empty": "暂无产物",
+    "unavailable": "暂不可用",
+    "retry": "重试"
   },
-  "sections": {
-    "activity": "活动",
-    "services": "服务",
-    "environment": "环境"
+  "diagnostics": {
+    "title": "详细状态与环境",
+    "summary": "{online} / {total} 服务在线"
+  },
+  "time": {
+    "just_now": "刚刚",
+    "mins_ago": "{n} 分钟前",
+    "hours_ago": "{n} 小时前",
+    "yesterday": "昨天"
   }
 }

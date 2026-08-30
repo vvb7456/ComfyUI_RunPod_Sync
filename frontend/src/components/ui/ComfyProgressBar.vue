@@ -117,7 +117,7 @@ const timeText = computed(() => {
 }
 
 .comfy-progress-bar.active {
-  border-color: rgba(0, 188, 212, .6);
+  border-color: color-mix(in srgb, var(--cyan) 60%, transparent);
 }
 
 .comfy-progress-bar-fill {
@@ -125,7 +125,7 @@ const timeText = computed(() => {
   top: 0;
   left: 0;
   height: 100%;
-  background: linear-gradient(90deg, rgba(74, 222, 128, .22), rgba(0, 188, 212, .18));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--green) 22%, transparent), color-mix(in srgb, var(--cyan) 18%, transparent));
   transition: width .3s ease;
   pointer-events: none;
 }

@@ -3,6 +3,8 @@
 export interface ComfyStatus {
   online: boolean
   pm2_status: string
+  /** ComfyUI 实际监听端口 (后端由应用变量 COMFYUI_URL 解析, 默认 8188) */
+  port: number
   system: {
     comfyui_version: string
     python_version: string
@@ -51,17 +53,20 @@ export interface ComfyQueueResponse {
 export interface ComfyHistoryItem {
   prompt_id: string
   completed?: boolean
-  timestamp?: string
+  timestamp?: number | string
   images?: Array<{
     filename: string
     subfolder: string
     type: string
+    animated?: boolean
   }>
   [key: string]: unknown
 }
 
 export interface ComfyHistoryResponse {
   history?: ComfyHistoryItem[]
+  error_key?: string
+  error_params?: Record<string, unknown>
 }
 
 // ── Version Management ────────────────────────────────────────
