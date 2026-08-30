@@ -1,4 +1,8 @@
 {
+  "group_workspace": "工作台",
+  "group_services": "服务",
+  "group_network": "连接",
+  "group_system": "系统",
   "dashboard": "总览",
   "generate": "内容生成",
   "models": "模型管理",

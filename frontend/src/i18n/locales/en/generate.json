@@ -17,7 +17,8 @@
     "family_flux2": "Flux 2 series",
     "family_wan22": "Wan 2.2 series",
     "family_minimax_h3": "MiniMax H3 series",
-    "not_ready": "Not ready"
+    "not_ready": "Not ready",
+    "back_to_all_models": "Back to all models"
   },
   "tabs": {
     "sdxl": "SDXL",

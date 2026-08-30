@@ -1,4 +1,8 @@
 {
+  "group_workspace": "Workspace",
+  "group_services": "Services",
+  "group_network": "Connect",
+  "group_system": "System",
   "dashboard": "Overview",
   "generate": "Generate",
   "models": "Models",

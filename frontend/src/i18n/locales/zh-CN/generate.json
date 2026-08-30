@@ -17,7 +17,8 @@
     "family_flux2": "Flux 2 系列",
     "family_wan22": "Wan 2.2 系列",
     "family_minimax_h3": "MiniMax H3 系列",
-    "not_ready": "未就绪"
+    "not_ready": "未就绪",
+    "back_to_all_models": "返回所有架构"
   },
   "tabs": {
     "sdxl": "SDXL",

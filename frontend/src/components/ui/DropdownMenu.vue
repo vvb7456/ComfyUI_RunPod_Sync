@@ -1,23 +1,17 @@
 <script setup lang="ts">
 /**
- * DropdownMenu — Teleport 锚定弹层下拉菜单。
+ * DropdownMenu — Teleport 锚定弹层下拉菜单 (响应式自适应)
  *
- * 特性:
- *  - Teleport 到 body, 无全屏遮罩, 点击外部/ESC 关闭
- *  - 定位: floating-ui, **transform: false** (用 top/left 避免与 Transition transform 冲突)
- *    (默认 transform 定位与动画 transform 冲突, 会导致面板从左上角飞入)
- *  - 入场动画 = 锚点起源 scale(0.98→1)+opacity+translateY, origin 按 placement 推导
- *  - 二级交互 = 下钻式: 点击父行 → 面板内容横滑切换为子视图
- *    (顶部"‹ 返回 + 父组名", 下方列 children); 移除内联折叠
- *  - 打开时若选中 key 在某组 children → 直接进入该组子视图
- *  - 触发器闭合态 ↑/↓ 直接在叶子项扁平序列中循环切换, 不展开菜单
- *  - hover 高亮 (次级底色) 与键盘高亮 (底色 + 左 2px accent 竖条) 视觉区分
- *  - logo 暗色适配: 纯黑/单色 logo 设置 logoInvertDark=true 时暗色主题 filter: invert(1), 底板透明
- *  - 键盘: ↑/↓ 移动高亮; Enter 叶子=选中 / 父行=下钻; 子视图 ArrowLeft/Backspace=返回;
- *    Escape=关闭 (任何层级)
+ * 交互范式:
+ *  - 桌面端 (宽屏 > 768px): 向右自适应悬浮级联 (Flyout Submenu), 一级架构常驻可见,
+ *    鼠标悬停或键盘右键即展开子菜单, 右侧空间不足自适应向左翻转, 零返回成本。
+ *  - 移动端 (窄屏 <= 768px): 自适应降级为单列下钻, 配备专属吸顶强化返回条。
+ *  - 定位: floating-ui (transform: false), 智能 flip + shift。
+ *  - 键盘: 桌面端 ArrowRight/Enter 展开子级, ArrowLeft 收起返回; Escape 关闭。
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useFloating, autoUpdate, offset, flip, shift, size as floatingSize } from '@floating-ui/vue'
+import { useI18n } from 'vue-i18n'
 import MsIcon from './MsIcon.vue'
 
 defineOptions({ name: 'DropdownMenu' })
@@ -27,21 +21,27 @@ export interface DropdownMenuItem {
   label: string
   /** 图片资源 URL; 与 letter 二选一 */
   logo?: string
-  /** 暗色主题下 logo 反色 (仅纯黑/单色 logo): filter: invert(1) + 底板透明 */
+  /** 暗色主题下 logo 反色 (仅纯黑/单色 logo) */
   logoInvertDark?: boolean
   /** logo 缺省时字母徽章字符 (1-2 字符) */
   letter?: string
   /** 说明性小字 (可选, 单行, 次要色) */
   hint?: string
-  /** 二级子项 (下钻式子视图) */
+  /** 二级子项 */
   children?: DropdownMenuItem[]
 }
 
-const props = defineProps<{
+const { t } = useI18n()
+
+const props = withDefaults(defineProps<{
   items: DropdownMenuItem[]
   /** 当前选中 key (可能是子项 key) */
   modelValue: string
-}>()
+  /** 移动端返回顶栏的提示文本，缺省回退 i18n 'common.btn.all' */
+  backLabel?: string
+}>(), {
+  backLabel: '',
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -52,23 +52,37 @@ const triggerRef = ref<HTMLElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 const open = ref(false)
 
-// ── 当前视图: 'root' | 父组 key (下钻式) ──
+// ── 响应式检测 (桌面端 vs 移动端) ──
+const isMobile = ref(false)
+function updateDevice() {
+  if (typeof window === 'undefined') return
+  isMobile.value = window.innerWidth <= 768
+}
+
+// ── 桌面端: 二级悬浮级联状态 ──
+const activeSubmenuParent = ref<DropdownMenuItem | null>(null)
+const subTriggerEl = ref<HTMLElement | null>(null)
+const subPanelRef = ref<HTMLElement | null>(null)
+let subOpenTimer: number | null = null
+let subCloseTimer: number | null = null
+
+// ── 移动端: 当前视图 ('root' | 父组 key) ──
 const currentView = ref<string>('root')
 
-/** 当前视图对应的行 (root → 顶级 items; 子视图 → 父组的 children) */
-const viewRows = computed<DropdownMenuItem[]>(() => {
+/** 移动端当前视图行 */
+const mobileViewRows = computed<DropdownMenuItem[]>(() => {
   if (currentView.value === 'root') return props.items
   const parent = props.items.find(it => it.key === currentView.value)
   return parent?.children || []
 })
 
-/** 当前视图的父组 (root → null) */
+/** 移动端当前视图父项 */
 const currentParent = computed<DropdownMenuItem | null>(() => {
   if (currentView.value === 'root') return null
   return props.items.find(it => it.key === currentView.value) || null
 })
 
-// ── 选中 key 所属的父组 key (若选中在某个 children 内) ──
+// ── 选中 key 所属的父组 key ──
 const selectedParentKey = computed<string | null>(() => {
   for (const it of props.items) {
     if (it.children && it.children.some(c => c.key === props.modelValue)) {
@@ -78,7 +92,7 @@ const selectedParentKey = computed<string | null>(() => {
   return null
 })
 
-// ── 叶子扁平序列 (触发器闭合态 ↑/↓ 在此循环) ──
+// ── 叶子扁平序列 (触发器闭合态 ↑/↓ 切换) ──
 const flatLeaves = computed<DropdownMenuItem[]>(() => {
   const out: DropdownMenuItem[] = []
   for (const it of props.items) {
@@ -91,57 +105,106 @@ const flatLeaves = computed<DropdownMenuItem[]>(() => {
   return out
 })
 
-// ── 定位 (floating-ui, transform: false) ──
-const { floatingStyles, placement } = useFloating(triggerRef, panelRef, {
+// ── 主面板定位 (floating-ui) ──
+const { floatingStyles: mainFloatingStyles, placement: mainPlacement } = useFloating(triggerRef, panelRef, {
   open,
   placement: 'bottom-start',
   strategy: 'fixed',
-  transform: false,  // 用 top/left 定位, 避免 transform 与 Transition 冲突
+  transform: false,
   middleware: [
     offset(8),
     flip({ padding: 8 }),
     shift({ padding: 8 }),
     floatingSize({
       padding: 8,
-      apply({ availableHeight, elements }) {
+      apply({ availableHeight, elements, rects }) {
         const max = Math.max(200, availableHeight)
         elements.floating.style.setProperty('--dd-menu-max', `${max}px`)
+        // 浮层宽度跟随触发器按钮: 保证不比触发器窄
+        const refWidth = Math.round(rects.reference.width)
+        if (refWidth > 0) {
+          elements.floating.style.setProperty('--dd-trigger-width', `${refWidth}px`)
+        }
       },
     }),
   ],
   whileElementsMounted: autoUpdate,
 })
 
-// 当前实际 placement (含 flip 后), 用于推导 transform-origin
-const resolvedPlacement = ref(placement.value)
-watch(placement, (v) => { resolvedPlacement.value = v })
+// ── 桌面端二级面板定位 (floating-ui) ──
+const isSubmenuOpen = computed(() => !isMobile.value && open.value && !!activeSubmenuParent.value)
+const { floatingStyles: subFloatingStyles } = useFloating(subTriggerEl, subPanelRef, {
+  open: isSubmenuOpen,
+  placement: 'right-start',
+  strategy: 'fixed',
+  transform: false,
+  middleware: [
+    offset({ mainAxis: 4, crossAxis: -4 }),
+    flip({ padding: 8 }),
+    shift({ padding: 8 }),
+    floatingSize({
+      padding: 8,
+      apply({ availableHeight, elements }) {
+        const max = Math.max(160, availableHeight)
+        elements.floating.style.setProperty('--dd-sub-max', `${max}px`)
+      },
+    }),
+  ],
+  whileElementsMounted: autoUpdate,
+})
 
-/** transform-origin 按实际 placement 推导:
- *  bottom-start → top left; 翻转后 top-start → bottom left; 右侧对齐 → 右 */
 const originClass = computed(() => {
-  const p = resolvedPlacement.value
+  const p = mainPlacement.value
   if (p.startsWith('bottom')) return p.endsWith('end') ? 'dd-origin-bottom-end' : 'dd-origin-bottom-start'
   if (p.startsWith('top')) return p.endsWith('end') ? 'dd-origin-top-end' : 'dd-origin-top-start'
   return 'dd-origin-bottom-start'
 })
 
+// ── 键盘导航高亮 ──
+const highlightIdx = ref(-1)
+const subHighlightIdx = ref(-1)
+
 // ── 打开/关闭 ──
 function openMenu() {
+  updateDevice()
   open.value = true
-  // 若选中 key 在某组 children 内 → 直接进入该组子视图 (定位选中项)
-  currentView.value = selectedParentKey.value || 'root'
+  // 移动端和桌面端初次展开均始终展示一级 root 架构列表，保持全局视野
+  currentView.value = 'root'
 
-  // 焦点 + 高亮到当前选中项
+  if (!isMobile.value) {
+    // 桌面端: 若选中项在子集内, 默认展开该子集的二级菜单，并初始化子项的高亮与聚焦
+    if (selectedParentKey.value) {
+      const parent = props.items.find(it => it.key === selectedParentKey.value)
+      if (parent) {
+        const childIdx = parent.children?.findIndex(c => c.key === props.modelValue) ?? -1
+        subHighlightIdx.value = childIdx >= 0 ? childIdx : 0
+        nextTick(() => {
+          subTriggerEl.value = panelRef.value?.querySelector(`[data-key="${parent.key}"]`) as HTMLElement || null
+          activeSubmenuParent.value = parent
+          nextTick(() => scrollToHighlighted())
+        })
+      }
+    } else {
+      activeSubmenuParent.value = null
+      subTriggerEl.value = null
+      subHighlightIdx.value = -1
+    }
+  }
+
   nextTick(() => {
-    const idx = viewRows.value.findIndex(r => r.key === props.modelValue)
+    const list = props.items
+    const idx = list.findIndex(r => r.key === props.modelValue || r.key === selectedParentKey.value)
     highlightIdx.value = idx >= 0 ? idx : 0
-    nextTick(() => scrollToHighlighted())
+    scrollToHighlighted()
   })
 }
 
 function closeMenu() {
   if (!open.value) return
   open.value = false
+  clearTimers()
+  activeSubmenuParent.value = null
+  subTriggerEl.value = null
   emit('close')
 }
 
@@ -150,13 +213,82 @@ function toggle() {
   else openMenu()
 }
 
-// ── 选择 / 下钻 / 返回 ──
+function clearTimers() {
+  if (subOpenTimer) { clearTimeout(subOpenTimer); subOpenTimer = null }
+  if (subCloseTimer) { clearTimeout(subCloseTimer); subCloseTimer = null }
+}
+
+// ── 选择叶子 ──
 function selectLeaf(item: DropdownMenuItem) {
   emit('update:modelValue', item.key)
   closeMenu()
 }
 
-function drillIn(parent: DropdownMenuItem) {
+// ── 桌面端悬浮级联处理 (位置与数据原子化同步更新，彻底根治残影闪烁) ──
+function onDesktopParentHover(item: DropdownMenuItem, e: MouseEvent) {
+  if (isMobile.value) return
+  // 清除已有的关闭倒计时
+  if (subCloseTimer) {
+    clearTimeout(subCloseTimer)
+    subCloseTimer = null
+  }
+
+  // 若已经在当前父项上展开，无需任何操作
+  if (activeSubmenuParent.value?.key === item.key) return
+
+  const targetEl = e.currentTarget as HTMLElement
+  clearTimers()
+
+  // 1. 若当前尚未展开任何子菜单: 延迟 80ms 展开 (防快速扫过误触)
+  // 2. 若当前已展开子菜单: 40ms 极短延迟原子切换 (位置与内容同步替换，绝不产生旧内容位置跳变)
+  const delay = activeSubmenuParent.value ? 40 : 80
+  subOpenTimer = window.setTimeout(() => {
+    subTriggerEl.value = targetEl
+    activeSubmenuParent.value = item
+    const childIdx = item.children?.findIndex(c => c.key === props.modelValue) ?? -1
+    subHighlightIdx.value = childIdx >= 0 ? childIdx : -1
+    subOpenTimer = null
+    nextTick(() => scrollToHighlighted())
+  }, delay)
+}
+
+function onDesktopLeafHover() {
+  if (isMobile.value) return
+  if (subOpenTimer) {
+    clearTimeout(subOpenTimer)
+    subOpenTimer = null
+  }
+  if (activeSubmenuParent.value && !subCloseTimer) {
+    subCloseTimer = window.setTimeout(() => {
+      activeSubmenuParent.value = null
+      subTriggerEl.value = null
+      subHighlightIdx.value = -1
+      subCloseTimer = null
+    }, 200)
+  }
+}
+
+function onSubPanelMouseEnter() {
+  if (subCloseTimer) {
+    clearTimeout(subCloseTimer)
+    subCloseTimer = null
+  }
+}
+
+function onSubPanelMouseLeave() {
+  if (isMobile.value) return
+  if (!subCloseTimer) {
+    subCloseTimer = window.setTimeout(() => {
+      activeSubmenuParent.value = null
+      subTriggerEl.value = null
+      subHighlightIdx.value = -1
+      subCloseTimer = null
+    }, 200)
+  }
+}
+
+// ── 移动端下钻处理 ──
+function onMobileParentClick(parent: DropdownMenuItem) {
   currentView.value = parent.key
   highlightIdx.value = 0
   nextTick(() => scrollToHighlighted())
@@ -164,19 +296,13 @@ function drillIn(parent: DropdownMenuItem) {
 
 function drillBack() {
   currentView.value = 'root'
-  // 高亮回到该父组行
   const idx = props.items.findIndex(it => it.key === currentParent.value?.key)
   highlightIdx.value = idx >= 0 ? idx : 0
   nextTick(() => scrollToHighlighted())
 }
 
 // ── 键盘导航 ──
-const highlightIdx = ref(-1)
-// hover 与键盘高亮分离: hoverIdx = 鼠标停留行; highlightIdx = 键盘高亮行
-const hoverIdx = ref(-1)
-
 function onTriggerKeydown(e: KeyboardEvent) {
-  // 菜单关闭且触发器聚焦时, ↑/↓ 直接在叶子扁平序列循环切换, 不展开菜单
   if (!open.value) {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
@@ -199,66 +325,117 @@ function onTriggerKeydown(e: KeyboardEvent) {
   handleKeydown(e)
 }
 
-function onPanelKeydown(e: KeyboardEvent) {
-  handleKeydown(e)
-}
-
 function handleKeydown(e: KeyboardEvent) {
   if (!open.value) return
-  const rows = viewRows.value
-  switch (e.key) {
-    case 'ArrowDown': {
+
+  // 移动端键盘逻辑
+  if (isMobile.value) {
+    const rows = mobileViewRows.value
+    if (e.key === 'ArrowDown') {
       e.preventDefault()
       highlightIdx.value = (highlightIdx.value + 1) % rows.length
       scrollToHighlighted()
-      break
-    }
-    case 'ArrowUp': {
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       highlightIdx.value = (highlightIdx.value - 1 + rows.length) % rows.length
       scrollToHighlighted()
-      break
-    }
-    case 'Enter':
-    case ' ': {
+    } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       const row = rows[highlightIdx.value]
-      if (!row) break
-      if (row.children && row.children.length) drillIn(row)
+      if (!row) return
+      if (row.children && row.children.length) onMobileParentClick(row)
       else selectLeaf(row)
-      break
-    }
-    case 'ArrowLeft':
-    case 'Backspace': {
-      // 子视图内 ArrowLeft/Backspace = 返回一级
+    } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
       if (currentView.value !== 'root') {
         e.preventDefault()
         drillBack()
       }
-      break
-    }
-    case 'Escape': {
+    } else if (e.key === 'Escape') {
       e.preventDefault()
       closeMenu()
-      nextTick(() => triggerRef.value?.focus())
-      break
+      triggerRef.value?.focus()
     }
+    return
+  }
+
+  // 桌面端键盘逻辑
+  if (activeSubmenuParent.value && activeSubmenuParent.value.children?.length) {
+    // 处于子菜单中
+    const subRows = activeSubmenuParent.value.children
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      subHighlightIdx.value = (subHighlightIdx.value + 1) % subRows.length
+      scrollToHighlighted()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      subHighlightIdx.value = (subHighlightIdx.value - 1 + subRows.length) % subRows.length
+      scrollToHighlighted()
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      if (subHighlightIdx.value >= 0 && subRows[subHighlightIdx.value]) {
+        selectLeaf(subRows[subHighlightIdx.value])
+      }
+    } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
+      e.preventDefault()
+      activeSubmenuParent.value = null
+      subHighlightIdx.value = -1
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      closeMenu()
+      triggerRef.value?.focus()
+    }
+    return
+  }
+
+  // 处于一级菜单中
+  const rows = props.items
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    highlightIdx.value = (highlightIdx.value + 1) % rows.length
+    scrollToHighlighted()
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    highlightIdx.value = (highlightIdx.value - 1 + rows.length) % rows.length
+    scrollToHighlighted()
+  } else if (e.key === 'ArrowRight') {
+    const row = rows[highlightIdx.value]
+    if (row?.children?.length) {
+      e.preventDefault()
+      // 键盘展开与鼠标悬浮共用状态; 若此前鼠标在叶子行挂起了关闭倒计时,
+      // 不清理会把刚展开的子菜单在 200ms 后关闭
+      clearTimers()
+      activeSubmenuParent.value = row
+      subTriggerEl.value = panelRef.value?.querySelector(`[data-key="${row.key}"]`) as HTMLElement || null
+      const childIdx = row.children.findIndex(c => c.key === props.modelValue)
+      subHighlightIdx.value = childIdx >= 0 ? childIdx : 0
+      nextTick(() => scrollToHighlighted())
+    }
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    const row = rows[highlightIdx.value]
+    if (!row) return
+    if (row.children?.length) {
+      clearTimers()
+      activeSubmenuParent.value = row
+      subTriggerEl.value = panelRef.value?.querySelector(`[data-key="${row.key}"]`) as HTMLElement || null
+      const childIdx = row.children.findIndex(c => c.key === props.modelValue)
+      subHighlightIdx.value = childIdx >= 0 ? childIdx : 0
+      nextTick(() => scrollToHighlighted())
+    } else {
+      selectLeaf(row)
+    }
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    closeMenu()
+    triggerRef.value?.focus()
   }
 }
 
 function scrollToHighlighted() {
   nextTick(() => {
     panelRef.value?.querySelector('.dd-row--kb')?.scrollIntoView({ block: 'nearest' })
+    subPanelRef.value?.querySelector('.dd-row--kb')?.scrollIntoView({ block: 'nearest' })
   })
-}
-
-function onRowMouseEnter(idx: number) {
-  hoverIdx.value = idx
-  // 鼠标进入不抢占键盘高亮 (两者分离)
-}
-
-function onRowMouseLeave() {
-  hoverIdx.value = -1
 }
 
 // ── 点击外部关闭 ──
@@ -267,74 +444,72 @@ function onClickOutside(e: MouseEvent) {
   const t = e.target as Node
   if (triggerRef.value?.contains(t)) return
   if (panelRef.value?.contains(t)) return
+  if (subPanelRef.value?.contains(t)) return
   closeMenu()
 }
 
 onMounted(() => {
+  updateDevice()
+  window.addEventListener('resize', updateDevice)
   document.addEventListener('click', onClickOutside, true)
 })
 onBeforeUnmount(() => {
+  clearTimers()
+  window.removeEventListener('resize', updateDevice)
   document.removeEventListener('click', onClickOutside, true)
 })
-
-// 视图切换 / 高亮变化时保持滚动同步
-watch(highlightIdx, () => scrollToHighlighted())
-
-// 视图切换时重置 hover
-watch(currentView, () => { hoverIdx.value = -1 })
 
 defineExpose({ openMenu, closeMenu })
 </script>
 
 <template>
   <div class="dd-menu" @keydown="onTriggerKeydown">
-    <!-- 触发器: 默认 slot, 提供 open/toggle slot props -->
+    <!-- 触发器插槽 -->
     <div ref="triggerRef" @click="toggle">
       <slot :open="open" :toggle="toggle" />
     </div>
 
+    <!-- 弹层部分 -->
     <Teleport to="body">
       <Transition name="dd-pop">
         <div
           v-if="open"
           ref="panelRef"
           class="dd-panel"
-          :class="originClass"
-          :style="floatingStyles"
+          :class="[originClass, isMobile && 'dd-panel--mobile']"
+          :style="mainFloatingStyles"
           role="listbox"
           tabindex="-1"
-          @keydown="onPanelKeydown"
+          @keydown="handleKeydown"
         >
-          <!-- 子视图返回行: 仅 currentView !== 'root' 显示 -->
+          <!-- ── 移动端专属吸顶强化返回条 ── -->
           <div
-            v-if="currentView !== 'root' && currentParent"
-            class="dd-row dd-row--back"
-            :class="{ 'dd-row--kb': highlightIdx === -1 }"
+            v-if="isMobile && currentView !== 'root' && currentParent"
+            class="dd-mobile-back-bar"
             @click="drillBack"
-            @mouseenter="onRowMouseEnter(-1)"
-            @mouseleave="onRowMouseLeave"
             role="button"
           >
-            <MsIcon name="arrow_back" size="xs" color="var(--t2)" />
-            <span class="dd-row__label">{{ currentParent.label }}</span>
+            <div class="dd-mobile-back-btn">
+              <MsIcon name="arrow_back" size="xs" color="var(--ac)" />
+              <span>{{ currentParent.label }}</span>
+            </div>
+            <span class="dd-mobile-back-hint">{{ backLabel || t('common.btn.all') }}</span>
           </div>
 
-          <!-- 视图内容 (横滑切换): root 与子视图共用 max-height, 各自滚动 -->
-          <Transition :name="'dd-slide-' + (currentView === 'root' ? 'back' : 'in')" mode="out-in">
-            <div :key="currentView" class="dd-list">
-              <template v-for="(row, idx) in viewRows" :key="row.key">
-                <!-- 父行: 下钻 -->
+          <!-- ── 列表内容 ── -->
+          <div class="dd-list">
+            <!-- 移动端视图 (下钻) -->
+            <template v-if="isMobile">
+              <template v-for="(row, idx) in mobileViewRows" :key="row.key">
+                <!-- 移动端父行: 点击下钻 -->
                 <div
                   v-if="row.children && row.children.length"
                   class="dd-row dd-row--parent"
                   :class="{
                     'dd-row--kb': idx === highlightIdx,
-                    'dd-row--hover': idx === hoverIdx,
                   }"
-                  @click="drillIn(row)"
-                  @mouseenter="onRowMouseEnter(idx)"
-                    @mouseleave="onRowMouseLeave"
-                    role="group"
+                  @click="onMobileParentClick(row)"
+                  role="group"
                 >
                   <div class="dd-logo" :class="{ 'dd-logo--pad': row.logo, 'dd-logo--invert-dark': row.logoInvertDark }">
                     <img v-if="row.logo" :src="row.logo" :alt="row.label" class="dd-logo__img" />
@@ -343,29 +518,22 @@ defineExpose({ openMenu, closeMenu })
                   <span class="dd-row__label">{{ row.label }}</span>
                   <span class="dd-row__right">
                     <span v-if="row.hint" class="dd-row__hint">{{ row.hint }}</span>
-                    <MsIcon
-                      name="chevron_right"
-                      size="xs"
-                      color="var(--t3)"
-                      class="dd-row__chevron"
-                    />
+                    <span v-if="row.key === selectedParentKey" class="dd-row__family-dot"></span>
+                    <MsIcon name="chevron_right" size="xs" color="var(--t3)" />
                   </span>
                 </div>
 
-                <!-- 叶子行 (一级或子视图共用) -->
+                <!-- 移动端叶子行 -->
                 <div
                   v-else
                   class="dd-row dd-row--leaf"
                   :class="{
                     'dd-row--sel': row.key === modelValue,
                     'dd-row--kb': idx === highlightIdx,
-                    'dd-row--hover': idx === hoverIdx,
                   }"
                   @click="selectLeaf(row)"
-                  @mouseenter="onRowMouseEnter(idx)"
-                    @mouseleave="onRowMouseLeave"
-                    role="option"
-                    :aria-selected="row.key === modelValue"
+                  role="option"
+                  :aria-selected="row.key === modelValue"
                 >
                   <div class="dd-logo" :class="{ 'dd-logo--pad': row.logo, 'dd-logo--invert-dark': row.logoInvertDark }">
                     <img v-if="row.logo" :src="row.logo" :alt="row.label" class="dd-logo__img" />
@@ -380,8 +548,112 @@ defineExpose({ openMenu, closeMenu })
                   </span>
                 </div>
               </template>
+            </template>
+
+            <!-- 桌面端视图 (常驻一级 + 悬浮展开二级) -->
+            <template v-else>
+              <template v-for="(row, idx) in items" :key="row.key">
+                <!-- 桌面端父行 (有 children): 鼠标悬停向右展开子面板 -->
+                <div
+                  v-if="row.children && row.children.length"
+                  :data-key="row.key"
+                  class="dd-row dd-row--parent"
+                  :class="{
+                    'dd-row--kb': idx === highlightIdx && !activeSubmenuParent,
+                    'dd-row--active-parent': activeSubmenuParent?.key === row.key,
+                  }"
+                  @mouseenter="onDesktopParentHover(row, $event)"
+                  @click="onDesktopParentHover(row, $event)"
+                  role="group"
+                >
+                  <div class="dd-logo" :class="{ 'dd-logo--pad': row.logo, 'dd-logo--invert-dark': row.logoInvertDark }">
+                    <img v-if="row.logo" :src="row.logo" :alt="row.label" class="dd-logo__img" />
+                    <span v-else class="dd-logo__letter">{{ row.letter || row.label.charAt(0) }}</span>
+                  </div>
+                  <span class="dd-row__label">{{ row.label }}</span>
+                  <span class="dd-row__right">
+                    <span v-if="row.hint" class="dd-row__hint">{{ row.hint }}</span>
+                    <span v-if="row.key === selectedParentKey" class="dd-row__family-dot"></span>
+                    <MsIcon
+                      name="chevron_right"
+                      size="xs"
+                      :color="activeSubmenuParent?.key === row.key ? 'var(--ac)' : 'var(--t3)'"
+                      class="dd-row__chevron"
+                    />
+                  </span>
+                </div>
+
+                <!-- 桌面端常规叶子行 -->
+                <div
+                  v-else
+                  class="dd-row dd-row--leaf"
+                  :class="{
+                    'dd-row--sel': row.key === modelValue,
+                    'dd-row--kb': idx === highlightIdx && !activeSubmenuParent,
+                  }"
+                  @click="selectLeaf(row)"
+                  @mouseenter="onDesktopLeafHover()"
+                  role="option"
+                  :aria-selected="row.key === modelValue"
+                >
+                  <div class="dd-logo" :class="{ 'dd-logo--pad': row.logo, 'dd-logo--invert-dark': row.logoInvertDark }">
+                    <img v-if="row.logo" :src="row.logo" :alt="row.label" class="dd-logo__img" />
+                    <span v-else class="dd-logo__letter">{{ row.letter || row.label.charAt(0) }}</span>
+                  </div>
+                  <span class="dd-row__label">{{ row.label }}</span>
+                  <span v-if="row.hint" class="dd-row__hint">{{ row.hint }}</span>
+                  <span class="dd-row__right">
+                    <span class="dd-row__check-slot">
+                      <MsIcon v-if="row.key === modelValue" name="check" size="xs" color="var(--ac)" class="dd-row__check" />
+                    </span>
+                  </span>
+                </div>
+              </template>
+            </template>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- ── 桌面端二级悬浮子菜单面板 ── -->
+      <Transition name="dd-pop">
+        <div
+          v-if="isSubmenuOpen && activeSubmenuParent?.children?.length"
+          :key="activeSubmenuParent.key"
+          ref="subPanelRef"
+          class="dd-panel dd-submenu-panel"
+          :style="subFloatingStyles"
+          role="listbox"
+          tabindex="-1"
+          @mouseenter="onSubPanelMouseEnter"
+          @mouseleave="onSubPanelMouseLeave"
+          @keydown="handleKeydown"
+        >
+          <div class="dd-list dd-submenu-list">
+            <div
+              v-for="(subRow, subIdx) in activeSubmenuParent.children"
+              :key="subRow.key"
+              class="dd-row dd-row--leaf"
+              :class="{
+                'dd-row--sel': subRow.key === modelValue,
+                'dd-row--kb': subIdx === subHighlightIdx,
+              }"
+              @click="selectLeaf(subRow)"
+              role="option"
+              :aria-selected="subRow.key === modelValue"
+            >
+              <div class="dd-logo" :class="{ 'dd-logo--pad': subRow.logo, 'dd-logo--invert-dark': subRow.logoInvertDark }">
+                <img v-if="subRow.logo" :src="subRow.logo" :alt="subRow.label" class="dd-logo__img" />
+                <span v-else class="dd-logo__letter">{{ subRow.letter || subRow.label.charAt(0) }}</span>
+              </div>
+              <span class="dd-row__label">{{ subRow.label }}</span>
+              <span v-if="subRow.hint" class="dd-row__hint">{{ subRow.hint }}</span>
+              <span class="dd-row__right">
+                <span class="dd-row__check-slot">
+                  <MsIcon v-if="subRow.key === modelValue" name="check" size="xs" color="var(--ac)" class="dd-row__check" />
+                </span>
+              </span>
             </div>
-          </Transition>
+          </div>
         </div>
       </Transition>
     </Teleport>
@@ -394,24 +666,79 @@ defineExpose({ openMenu, closeMenu })
 }
 
 .dd-panel {
-  position: fixed;  /* strategy: fixed + transform:false → top/left 定位 */
+  position: fixed;
   top: 0;
   left: 0;
   z-index: 1000;
-  min-width: 240px;
-  max-width: 360px;
+  min-width: max(230px, var(--dd-trigger-width, 0px));
+  max-width: min(380px, calc(100vw - 16px));
   background: var(--bg3);
   border: 1px solid var(--bd);
   border-radius: var(--r-lg);
   box-shadow: var(--sh);
   overflow: hidden;
-  --dd-menu-max: 360px;
+  --dd-menu-max: 380px;
+}
+
+.dd-panel--mobile {
+  min-width: max(230px, var(--dd-trigger-width, 0px));
+  width: max(230px, var(--dd-trigger-width, 0px));
+  max-width: calc(100vw - 16px);
+}
+
+.dd-submenu-panel {
+  z-index: 1001;
+  min-width: 220px;
+  max-width: 300px;
+  --dd-sub-max: 360px;
+  overflow: visible;
+}
+
+/* 隐形防脱焦桥接热区 (避免鼠标从一级滑向二级时的微小空隙丢失 hover) */
+.dd-submenu-panel::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  left: -24px;
+  right: -24px;
+  background: transparent;
+  z-index: -1;
+  pointer-events: auto;
 }
 
 .dd-list {
-  max-height: var(--dd-menu-max, 360px);
+  max-height: var(--dd-menu-max, 380px);
   overflow-y: auto;
   padding: var(--sp-1);
+}
+
+.dd-submenu-list {
+  max-height: var(--dd-sub-max, 360px);
+}
+
+/* ── 移动端专属吸顶强化返回条 ── */
+.dd-mobile-back-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--bd);
+  cursor: pointer;
+  user-select: none;
+}
+.dd-mobile-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--t1);
+}
+.dd-mobile-back-hint {
+  font-size: var(--text-xs);
+  color: var(--t3);
 }
 
 /* ── 行 (通用) ── */
@@ -425,20 +752,22 @@ defineExpose({ openMenu, closeMenu })
   user-select: none;
   position: relative;
   min-width: 0;
+  transition: background .12s, color .12s;
 }
 
 .dd-row--leaf {
   font-size: var(--text-base);
+  font-weight: 400;
   color: var(--t2);
 }
 
-/* hover 高亮 = 次级底色 (不抢键盘高亮) */
-.dd-row--hover {
+/* hover 高亮 */
+.dd-row:hover {
   background: color-mix(in srgb, var(--ac) 6%, transparent);
   color: var(--t1);
 }
 
-/* 键盘高亮 = 底色 + 左 2px accent 竖条 */
+/* 键盘高亮 */
 .dd-row--kb {
   background: color-mix(in srgb, var(--ac) 10%, transparent);
   color: var(--t1);
@@ -454,30 +783,31 @@ defineExpose({ openMenu, closeMenu })
   background: var(--ac);
 }
 
-/* 父行: 不可选中态, 下钻入口 */
+/* 父行: 悬浮/激活态 */
 .dd-row--parent {
   font-size: var(--text-base);
-  font-weight: 500;
-  color: var(--t1);
-}
-
-/* 返回行 (子视图顶部) */
-.dd-row--back {
-  font-size: var(--text-base);
+  font-weight: 400;
   color: var(--t2);
-  border-bottom: 1px solid var(--bd);
-  border-radius: 0;
-  margin-bottom: var(--sp-1);
-  padding-left: var(--sp-1);
-}
-.dd-row--back:hover {
-  color: var(--t1);
-  background: color-mix(in srgb, var(--ac) 6%, transparent);
 }
 
-/* 选中态高亮: accent 竖条 + 颜色 (与键盘高亮竖条共存, 选中态额外着色) */
+.dd-row--active-parent {
+  background: color-mix(in srgb, var(--ac) 10%, transparent);
+  color: var(--ac);
+}
+
+/* 家族内包含选中项的小圆点 */
+.dd-row__family-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ac);
+  flex-shrink: 0;
+}
+
+/* 选中态高亮 */
 .dd-row--sel {
   color: var(--ac);
+  font-weight: 500;
 }
 .dd-row--sel::after {
   content: '';
@@ -502,23 +832,22 @@ defineExpose({ openMenu, closeMenu })
   overflow: hidden;
 }
 
-/* logo 底板: 中性设计 — 白底 + 1px 边框弱化突兀 */
+/* logo 底板: 保证单色/黑色与彩色 logo 在暗色和亮色下均清晰可见 */
 .dd-logo--pad {
-  background: #f4f4f5;
+  background: var(--bg-logo-pad, #f1f3f5);
   border: 1px solid var(--bd);
+  padding: 2px;
 }
 
-/* 暗色主题下纯黑单色 logo 反色; 底板改透明 */
+/* 暗色主题下纯黑单色 logo 反色 */
 .dd-logo--invert-dark {
-  /* data-theme 未设 = 暗色 (见 useTheme.ts: isDark → dataset.theme = '') */
   filter: invert(1);
   background: transparent;
   border-color: transparent;
 }
-/* 明色主题不反色 (data-theme="light") */
 :global([data-theme="light"]) .dd-logo--invert-dark {
   filter: none;
-  background: #f4f4f5;
+  background: var(--bg-logo-pad, #ffffff);
   border: 1px solid var(--bd);
 }
 
@@ -565,21 +894,19 @@ defineExpose({ openMenu, closeMenu })
 .dd-row__right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-/* ── chevron (指示下钻) ── */
 .dd-row__chevron {
-  opacity: .7;
+  opacity: .75;
+  transition: transform .15s ease;
 }
 
-/* ── 选中 check 图标 ── */
 .dd-row__check {
   font-size: 14px;
 }
 
-/* ── 行尾固定槽位 (避免条件渲染导致列宽抖动) ── */
 .dd-row__check-slot {
   flex: none;
   width: 16px;
@@ -589,8 +916,7 @@ defineExpose({ openMenu, closeMenu })
   justify-content: center;
 }
 
-/* ── 入场/离场动画 (锚点起源 scale + opacity + translateY) ── */
-/* transform-origin 按 placement 推导 (originClass) */
+/* ── 动画 ── */
 .dd-panel.dd-origin-bottom-start { transform-origin: top left; }
 .dd-panel.dd-origin-bottom-end { transform-origin: top right; }
 .dd-panel.dd-origin-top-start { transform-origin: bottom left; }
@@ -609,38 +935,5 @@ defineExpose({ openMenu, closeMenu })
 .dd-pop-leave-to {
   opacity: 0;
   transform: scale(.98) translateY(-2px);
-}
-
-/* ── 子视图横滑切换 ── */
-.dd-slide-in-enter-active,
-.dd-slide-in-leave-active,
-.dd-slide-back-enter-active,
-.dd-slide-back-leave-active {
-  transition: opacity .15s ease, transform .15s ease;
-}
-.dd-slide-in-enter-from {
-  opacity: 0;
-  transform: translateX(30px);  /* 子视图从右侧滑入 */
-}
-.dd-slide-in-leave-to {
-  opacity: 0;
-  transform: translateX(-30px);  /* root 向左滑出 */
-}
-.dd-slide-back-enter-from {
-  opacity: 0;
-  transform: translateX(-30px);  /* root 从左侧滑回 */
-}
-.dd-slide-back-leave-to {
-  opacity: 0;
-  transform: translateX(30px);  /* 子视图向右滑出 */
-}
-@media (prefers-reduced-motion: reduce) {
-  /* 偏好减少动效: 横滑降级为纯 fade */
-  .dd-slide-in-enter-from,
-  .dd-slide-in-leave-to,
-  .dd-slide-back-enter-from,
-  .dd-slide-back-leave-to {
-    transform: none;
-  }
 }
 </style>

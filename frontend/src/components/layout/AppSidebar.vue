@@ -5,8 +5,7 @@ import { useAppStore } from '@/stores/app'
 import { switchLanguage } from '@/i18n/vue-i18n'
 import { computed } from 'vue'
 import MsIcon from '../ui/MsIcon.vue'
-// 主题切换是全局偏好, 与页面无关 —— 从每页的 PageHeader 移到这里,
-// 和同为全局偏好的语言切换放在一起
+// 主题切换是全局偏好, 与页面无关, 和同为全局偏好的语言切换放在一起
 import ThemeToggle from '../ui/ThemeToggle.vue'
 
 defineOptions({ name: 'AppSidebar' })
@@ -30,20 +29,47 @@ interface NavItem {
   label?: string
 }
 
-const navItems: NavItem[] = [
-  { page: 'dashboard', icon: 'dashboard',    labelKey: 'nav.dashboard' },
-  { page: 'generate',  icon: 'palette',      labelKey: 'nav.generate' },
-  { page: 'models',    icon: 'extension',    labelKey: 'nav.models' },
-  { page: 'comfyui',   icon: 'terminal',     label: 'ComfyUI' },
-  { page: 'sync',      icon: 'cloud_sync',   labelKey: 'nav.sync' },
-  { page: 'tunnel',    icon: 'language',     labelKey: 'nav.tunnel' },
-  { page: 'jupyter',   icon: 'book_2',       label: 'Jupyter' },
-  { page: 'ssh',       icon: 'key',          label: 'SSH' },
-]
-
-const settingsItem: NavItem = {
-  page: 'settings', icon: 'settings', labelKey: 'nav.settings',
+interface NavGroup {
+  key: string
+  titleKey: string
+  items: NavItem[]
 }
+
+const navGroups: NavGroup[] = [
+  {
+    key: 'workspace',
+    titleKey: 'nav.group_workspace',
+    items: [
+      { page: 'dashboard', icon: 'dashboard', labelKey: 'nav.dashboard' },
+      { page: 'generate',  icon: 'palette',   labelKey: 'nav.generate' },
+      { page: 'models',    icon: 'extension', labelKey: 'nav.models' },
+    ],
+  },
+  {
+    key: 'services',
+    titleKey: 'nav.group_services',
+    items: [
+      { page: 'comfyui', icon: 'terminal', label: 'ComfyUI' },
+      { page: 'jupyter', icon: 'book_2',   label: 'Jupyter' },
+    ],
+  },
+  {
+    key: 'network',
+    titleKey: 'nav.group_network',
+    items: [
+      { page: 'sync',   icon: 'cloud_sync', labelKey: 'nav.sync' },
+      { page: 'tunnel', icon: 'language',   labelKey: 'nav.tunnel' },
+      { page: 'ssh',    icon: 'key',        label: 'SSH' },
+    ],
+  },
+  {
+    key: 'system',
+    titleKey: 'nav.group_system',
+    items: [
+      { page: 'settings', icon: 'settings', labelKey: 'nav.settings' },
+    ],
+  },
+]
 
 const currentPage = computed(() => route.name as string)
 
@@ -80,7 +106,9 @@ function toggleLang() {
       class="sidebar-toggle"
       :title="t('common.sidebar.toggle')"
       @click="app.toggleSidebar()"
-    >◀</button>
+    >
+      <MsIcon name="chevron_left" size="xs" />
+    </button>
 
     <div class="sidebar-logo">
       <img src="/logo-mark.svg" alt="ComfyCarry" class="logo-icon" width="28" height="28" />
@@ -88,27 +116,30 @@ function toggleLang() {
     </div>
 
     <div class="sidebar-nav">
-      <button
-        v-for="item in navItems"
-        :key="item.page"
-        class="nav-item"
-        :class="{ active: isNavActive(item) }"
-        @click="navTo(item)"
+      <div
+        v-for="(group, idx) in navGroups"
+        :key="group.key"
+        class="nav-group"
+        :class="{ 'first-group': idx === 0 }"
       >
-        <span class="icon"><MsIcon :name="item.icon" size="md" /></span>
-        <span class="nav-label">{{ getLabel(item) }}</span>
-      </button>
-
-      <div style="flex: 1" />
-
-      <button
-        class="nav-item"
-        :class="{ active: isNavActive(settingsItem) }"
-        @click="navTo(settingsItem)"
-      >
-        <span class="icon"><MsIcon :name="settingsItem.icon" size="md" /></span>
-        <span class="nav-label">{{ getLabel(settingsItem) }}</span>
-      </button>
+        <div class="nav-group-header">
+          <span class="nav-group-title">{{ t(group.titleKey) }}</span>
+          <span class="nav-group-divider" aria-hidden="true" />
+        </div>
+        <div class="nav-group-items">
+          <button
+            v-for="item in group.items"
+            :key="item.page"
+            class="nav-item"
+            :class="{ active: isNavActive(item) }"
+            :title="app.sidebarCollapsed ? getLabel(item) : undefined"
+            @click="navTo(item)"
+          >
+            <span class="icon"><MsIcon :name="item.icon" size="md" /></span>
+            <span class="nav-label">{{ getLabel(item) }}</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="sidebar-footer">
