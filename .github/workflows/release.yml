@@ -60,6 +60,26 @@ jobs:
             exit 1
           fi
 
+      # ── 提取 CHANGELOG.md 中对应 tag 的变更日志 ──
+      - name: Extract changelog
+        id: changelog
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          NOTES=$(python3 -c "
+          import re, sys
+          tag = sys.argv[1]
+          text = open('CHANGELOG.md', encoding='utf-8').read()
+          m = re.search(r'^## ' + re.escape(tag) + r'\b[^\n]*\n(.*?)(?=^## |\Z)', text, re.M | re.S)
+          if not m:
+            sys.exit(1)
+          print(m.group(1).strip())
+          " "$TAG") || { echo "::error::CHANGELOG.md 未找到 ${TAG} 的变更日志段落"; exit 1; }
+          {
+            echo "notes<<CHANGELOG_EOF"
+            printf '%s\n' "$NOTES"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       # ── 前端构建 ──
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -112,11 +132,11 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ComfyCarry ${{ steps.tag.outputs.tag }}
           body: |
-            ComfyCarry ${{ steps.tag.outputs.tag }} 正式发布。
+            ${{ steps.changelog.outputs.notes }}
+
+            ---
 
             `comfycarry-dist.tar.gz` 为完整部署包（后端 + 前端构建产物 + 提示词库数据），
             bootstrap.sh 与面板内置更新均从此 Release 下载。
-
-            tag commit: ${{ steps.tag.outputs.tag }}@${{ github.sha }}
           files: ${{ env.ASSET_NAME }}
           make_latest: true
