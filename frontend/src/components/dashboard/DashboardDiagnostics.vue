@@ -190,7 +190,7 @@ function svcStatusColor(st?: string) {
 .dash-diagnostics__meta {
   font-size: var(--text-xs);
   color: var(--t3);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-tabular);
 }
 
 .dash-diagnostics-card {
@@ -240,7 +240,7 @@ function svcStatusColor(st?: string) {
   padding: 10px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--bd) 60%, transparent);
   color: var(--t2);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-tabular);
   white-space: nowrap;
 }
 

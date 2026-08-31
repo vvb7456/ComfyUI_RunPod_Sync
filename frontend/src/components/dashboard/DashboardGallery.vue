@@ -304,7 +304,7 @@ onMounted(() => {
 .dash-output-meta {
   font-size: var(--text-xxs);
   color: var(--t3);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-tabular);
 }
 
 .dash-output-skeleton {

@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function () {
 :root{--l-bg:#06060c;--l-card:rgba(18,18,30,.75);--l-card-bd:rgba(84,112,234,.15);--l-input-bg:rgba(10,10,18,.7);--l-input-bd:#2a2a3e;--l-t1:#e8e8f0;--l-t3:#68688a;--l-orb-op:.15;--l-shadow:rgba(0,0,0,.4)}
 /* ── 浅色主题 (Modern Neutral / 现代中性) ── */
 html[data-theme="light"]{--l-bg:#f6f8fa;--l-card:rgba(255,255,255,.9);--l-card-bd:rgba(79,70,229,.18);--l-input-bg:rgba(241,244,248,.95);--l-input-bd:#d8dee4;--l-t1:#0f172a;--l-t3:#8c9ba5;--l-orb-op:.1;--l-shadow:rgba(15,23,42,.08)}
-body{font-family:'IBM Plex Sans','IBM Plex Sans SC',-apple-system,sans-serif;background:var(--l-bg);color:var(--l-t1);min-height:100vh;display:flex;align-items:center;justify-content:center;font-size:clamp(15px,1.1vw,21px);overflow:hidden}
+body{font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--l-bg);color:var(--l-t1);min-height:100vh;display:flex;align-items:center;justify-content:center;font-size:clamp(15px,1.1vw,21px);overflow:hidden}
 /* 背景动画 */
 .bg{position:fixed;inset:0;z-index:0;overflow:hidden}
 .bg .orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:var(--l-orb-op);animation:drift 20s ease-in-out infinite}

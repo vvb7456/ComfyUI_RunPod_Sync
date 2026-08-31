@@ -321,7 +321,7 @@ const gpuTempColor = computed(() => {
 .dash-hero__sub {
   font-size: var(--text-sm);
   color: var(--t3);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-tabular);
   margin: 0 0 24px 0;
   line-height: 1.5;
 }
@@ -371,7 +371,7 @@ const gpuTempColor = computed(() => {
   font-size: 1.6rem;
   font-weight: 700;
   color: var(--t1);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-tabular);
   line-height: 1.2;
   margin-bottom: 4px;
 }
@@ -392,14 +392,14 @@ const gpuTempColor = computed(() => {
   justify-content: space-between;
   font-size: var(--text-xs);
   color: var(--t3);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-tabular);
   margin-top: 10px;
 }
 
 .dash-gpu__pct {
   font-size: var(--text-xs);
   color: var(--t3);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-tabular);
 }
 
 /* ── Skeletons ── */

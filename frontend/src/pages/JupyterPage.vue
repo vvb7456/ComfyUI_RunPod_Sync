@@ -423,7 +423,7 @@ onUnmounted(() => {
 .jupyter-info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 8px 0 16px; }
 .jupyter-info-item { background: var(--bg3); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
 .jupyter-info-label { font-size: .72rem; color: var(--t3); text-transform: uppercase; letter-spacing: .04em; }
-.jupyter-info-item > span:last-child { font-size: .95rem; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+.jupyter-info-item > span:last-child { font-size: .95rem; font-weight: 600; font-family: var(--font-tabular); }
 
 /* ── Kernel Specs ── */
 .jupyter-kernelspecs { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }

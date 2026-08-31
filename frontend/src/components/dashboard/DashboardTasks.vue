@@ -215,7 +215,7 @@ function formatDlSize(completed?: number, total?: number): string {
 .dash-task-meta {
   font-size: var(--text-xs);
   color: var(--t3);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-tabular);
 }
 
 .dash-task-bar-wrap {
