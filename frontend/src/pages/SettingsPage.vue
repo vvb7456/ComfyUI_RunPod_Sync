@@ -808,8 +808,8 @@ loadSettings()
           <BaseCard density="roomy" radius="lg" class="about-card">
             <section class="about-content" aria-labelledby="about-product-name">
               <header class="about-identity">
-                <img class="about-logo" src="/logo-tile.svg" alt="" aria-hidden="true" />
-                <h3 id="about-product-name" class="about-product-name">ComfyCarry</h3>
+                <img class="about-logo" src="/logo-mark.svg" alt="" aria-hidden="true" />
+                <h3 id="about-product-name" class="about-product-name">Comfy<span class="about-product-name__b">Carry</span></h3>
                 <div class="about-build">
                   <span>{{ t('settings.about.version') }} {{ app.version || '—' }}</span>
                   <span class="about-meta-sep" aria-hidden="true">·</span>
@@ -953,7 +953,7 @@ loadSettings()
           <FormField>
             <template #label>
               {{ t('settings.civitai.key_prefix') }}
-              <a href="https://civitai.com/user/account" target="_blank" style="color:var(--ac)">{{ t('settings.civitai.key_link') }}</a>
+              <a href="https://civitai.com/user/account" target="_blank" class="inline-ext-link">{{ t('settings.civitai.key_link') }}</a>
               {{ t('settings.civitai.key_suffix') }}
             </template>
             <SecretInput
@@ -1154,24 +1154,25 @@ loadSettings()
   display: block;
   width: 60px;
   height: 60px;
-  margin: 0 auto 14px;
-  border-radius: 14px;
-  box-shadow: 0 7px 18px color-mix(in srgb, var(--ac) 24%, transparent);
+  margin: 0 auto 16px;
 }
 .about-product-name {
   margin: 0;
   color: var(--t1);
-  font-size: 1.32rem;
+  font-size: 1.5rem;
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: -.015em;
+}
+.about-product-name__b {
+  color: var(--ac);
 }
 .about-build {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-top: 7px;
+  margin-top: 10px;
   color: var(--t2);
   font-size: .76rem;
   line-height: 1.5;
@@ -1189,13 +1190,13 @@ loadSettings()
 }
 .about-desc {
   max-width: 50ch;
-  margin: 17px auto 0;
+  margin: 20px auto 0;
   color: var(--t2);
   font-size: .86rem;
   line-height: 1.7;
 }
 .about-update-block {
-  margin-top: 20px;
+  margin-top: 22px;
 }
 .about-actions {
   display: flex;
@@ -1266,6 +1267,14 @@ loadSettings()
   color: var(--t2);
   font-size: .76rem;
   line-height: 1.55;
+}
+.inline-ext-link {
+  color: var(--ac);
+  text-decoration: none;
+}
+.inline-ext-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .about-author {
   color: inherit;

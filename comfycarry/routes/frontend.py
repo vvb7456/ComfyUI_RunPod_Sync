@@ -2,6 +2,7 @@
 ComfyCarry — 前端页面服务路由
 
 - /              — Dashboard 或 Setup Wizard (来自 static/dist/)
+- /login         — Vue 登录页
 - /favicon.ico   — 图标
 - /assets/<path> — Vite 构建产物资源
 """
@@ -48,6 +49,18 @@ def index():
         resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         return resp
     return Response("<h1>dist/index.html not found</h1>",
+                    mimetype="text/html", status=404)
+
+
+@bp.route("/login")
+def login_page():
+    login_dist = DIST_DIR / "login.html"
+    if login_dist.exists():
+        resp = Response(login_dist.read_text(encoding="utf-8"),
+                        mimetype="text/html")
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return resp
+    return Response("<h1>dist/login.html not found</h1>",
                     mimetype="text/html", status=404)
 
 

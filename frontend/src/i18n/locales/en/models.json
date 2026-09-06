@@ -5,6 +5,11 @@
     "huggingface": "Official Models",
     "civitai": "CivitAI"
   },
+  "source_types": {
+    "civitai": "CivitAI",
+    "huggingface": "Hugging Face",
+    "unknown": "Unknown"
+  },
   "drawer": {
     "title": "Favorites & Downloads",
     "has_failed": "A download failed — open to review"
@@ -28,8 +33,6 @@
     "enriching": "Fetching metadata…",
     "size": "Size",
     "source": "Source",
-    "civitai_link": "CivitAI",
-    "open_civitai": "Open CivitAI page",
     "fetch_success": "Fetched successfully",
     "fetched": "Metadata",
     "all_have_info": "All models already have info",

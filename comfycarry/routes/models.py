@@ -377,6 +377,7 @@ def _public_model(model: dict, *, detail: bool = False) -> dict:
             "source",
             "links",
             "images",
+            "source_url",
         )
     return {key: value[key] for key in fields if key in value}
 

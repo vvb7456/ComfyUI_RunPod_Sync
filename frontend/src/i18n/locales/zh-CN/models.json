@@ -5,6 +5,11 @@
     "huggingface": "官方模型",
     "civitai": "CivitAI"
   },
+  "source_types": {
+    "civitai": "CivitAI",
+    "huggingface": "Hugging Face",
+    "unknown": "未知"
+  },
   "drawer": {
     "title": "收藏&下载",
     "has_failed": "有下载失败，点击查看"
@@ -28,8 +33,6 @@
     "enriching": "正在获取元数据…",
     "size": "大小",
     "source": "来源",
-    "civitai_link": "CivitAI",
-    "open_civitai": "打开 CivitAI 页面",
     "fetch_success": "获取成功",
     "fetched": "元数据",
     "all_have_info": "所有模型已有信息",

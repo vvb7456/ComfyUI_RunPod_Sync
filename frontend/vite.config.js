@@ -18,6 +18,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         wizard: resolve(__dirname, 'wizard.html'),
+        login: resolve(__dirname, 'login.html'),
       },
     },
   },
@@ -25,7 +26,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': 'http://localhost:5000',
-      '/login': 'http://localhost:5000',
+      '^/login(?:\\?|$)': 'http://localhost:5000',
       '/logout': 'http://localhost:5000',
     },
   },

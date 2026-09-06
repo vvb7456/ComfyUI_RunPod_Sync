@@ -46,7 +46,7 @@ const previewUrl = computed(() => {
 
 const images = computed<LocalModelImage[]>(() => detail.value?.images || [])
 const visibleLinks = computed(() =>
-  (detail.value?.links || []).filter(link => link.type !== 'civitai_api'),
+  (detail.value?.links || []).filter(link => link.type !== 'civitai_web' && link.type !== 'civitai_api'),
 )
 const galleryUrls = computed(() => {
   const out: string[] = []
@@ -58,9 +58,15 @@ const galleryUrls = computed(() => {
 const displayName = computed(() => detail.value?.display_name || props.model?.display_name || props.model?.filename || 'Model')
 
 function sourceLabel() {
+  const type = detail.value?.source?.type
+  return t(`models.source_types.${type || 'unknown'}`)
+}
+
+function sourceUrl() {
   const source = detail.value?.source
   if (!source?.type) return ''
-  return source.type
+  if (source.type === 'huggingface') return detail.value?.source_url || ''
+  return detail.value?.links?.find(link => link.url)?.url || ''
 }
 
 function resetTriggerWords() {
@@ -209,11 +215,11 @@ function openImage(index: number) {
           <tr><td>{{ t('models.meta.file') }}</td><td class="lm-mono">{{ detail.relative_path }}</td></tr>
           <tr><td>{{ t('models.local.size') }}</td><td>{{ fmtBytes(detail.size_bytes) }}</td></tr>
           <tr v-if="detail.sha256"><td>SHA256</td><td class="lm-mono">{{ detail.sha256 }}</td></tr>
-          <tr v-if="sourceLabel()"><td>{{ t('models.local.source') }}</td><td>{{ sourceLabel() }}</td></tr>
+          <tr><td>{{ t('models.local.source') }}</td><td><a v-if="sourceUrl()" :href="sourceUrl()" target="_blank" rel="noopener" class="lm-source-link">{{ sourceLabel() }} <MsIcon name="open_in_new" class="ms-sm" /></a><template v-else>{{ sourceLabel() }}</template></td></tr>
           <tr v-if="detail.source.version_name"><td>{{ t('models.meta.version') }}</td><td>{{ detail.source.version_name }}</td></tr>
           <tr v-for="link in visibleLinks" :key="link.type + link.url">
-            <td>{{ link.type === 'civitai_web' ? t('models.local.civitai_link') : link.type }}</td>
-            <td><a :href="link.url" target="_blank" rel="noopener">{{ link.type === 'civitai_web' ? t('models.local.open_civitai') : link.url }} ↗</a></td>
+            <td>{{ link.type }}</td>
+            <td><a :href="link.url" target="_blank" rel="noopener">{{ link.url }} <MsIcon name="open_in_new" class="ms-sm" /></a></td>
           </tr>
         </tbody>
       </table>
@@ -264,7 +270,9 @@ function openImage(index: number) {
 .lm-table { width: 100%; font-size: var(--text-base); border-collapse: collapse; margin-bottom: var(--sp-4); }
 .lm-table td { padding: 7px 10px; border-bottom: 1px solid var(--bd); vertical-align: top; }
 .lm-table td:first-child { color: var(--t3); white-space: nowrap; width: 100px; font-weight: 500; }
-.lm-table a { color: var(--ac); word-break: break-all; }
+.lm-table a { color: var(--ac); word-break: break-all; text-decoration: none; }
+.lm-table a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.lm-source-link { white-space: nowrap; }
 .lm-mono { word-break: break-all; font-family: monospace; font-size: .78rem; }
 .lm-section { margin-top: var(--sp-4); }
 .lm-section-title { font-size: .88rem; font-weight: 600; display: flex; align-items: center; gap: var(--sp-1); margin-bottom: 8px; }

@@ -454,7 +454,8 @@ onUnmounted(() => {
 .connect-cmd-row { display: flex; align-items: center; gap: 8px; }
 .connect-cmd-code { flex: 1; font-family: 'IBM Plex Mono', monospace; font-size: .8rem; color: var(--t1); background: var(--bg); padding: 8px 12px; border-radius: var(--rs); overflow-x: auto; white-space: nowrap; }
 .connect-cmd-hint { font-size: .72rem; color: var(--t3); margin-top: 4px; }
-.connect-cmd-hint a { color: var(--ac); }
+.connect-cmd-hint a { color: var(--ac); text-decoration: none; }
+.connect-cmd-hint a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .connect-cmd-fallback { display: flex; flex-direction: column; gap: 6px; color: var(--t3); font-size: .82rem; }
 
 /* Vue-unique: SSH key source badge */

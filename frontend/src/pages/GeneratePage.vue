@@ -553,8 +553,8 @@ sse.start()
         :message="t('generate.preview.offline_desc')"
       >
         <router-link v-if="gate.state.value === 'offline'" to="/comfyui" class="gen-gate-link">
-          <MsIcon name="open_in_new" color="none" />
           {{ t('generate.gate.go_comfyui') }}
+          <MsIcon name="open_in_new" color="none" />
         </router-link>
         <div v-if="gate.state.value === 'starting' || gate.state.value === 'checking'" class="gen-gate-spinner">
           <div class="gate-spinner" />
