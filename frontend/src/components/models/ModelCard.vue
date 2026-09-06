@@ -152,10 +152,12 @@ watch(
   box-shadow: var(--sh);
 }
 
-/* ── Image ── */
+/* ── Image ──
+   3:4 竖版 —— Civitai 首图 ~80% 为竖图 (主流 2:3), 竖框裁切最少;
+   HF 白名单 workflow_templates 缩略图为 1:1, 裁 25% 宽仍在可接受范围。 */
 .mc-img {
   width: 100%;
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 3 / 4;
   overflow: hidden;
   background: var(--bg-in);
   position: relative;

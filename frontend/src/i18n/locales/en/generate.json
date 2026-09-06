@@ -6,7 +6,7 @@
     "backend_error": "Cannot connect to Dashboard service"
   },
   "header": {
-    "queue_history": "Queue / History",
+    "queue_history": "Queue & History",
     "model_selector_aria": "Select model",
     "family_sdxl": "SDXL series",
     "family_flux1": "Flux 1 series",

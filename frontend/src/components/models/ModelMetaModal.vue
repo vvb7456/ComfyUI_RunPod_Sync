@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelMeta, ModelMetaImage, ModelMetaVersion } from '@/types/models'
-import { MODEL_CATEGORY_COLORS } from '@/utils/constants'
+import { modelCategoryColor, modelCategoryLabel } from '@/utils/constants'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseSelect from '@/components/form/BaseSelect.vue'
 import Badge from '@/components/ui/Badge.vue'
@@ -181,10 +181,11 @@ function copyAllWords() {
 }
 
 // ── Image URL helpers ──
+// 缩略走 550 (3:4 竖版 gallery 单元高度 ~240px, DPR2 下需要更大)
 function resolveImageUrl(url: string, full = false): string {
   if (!url) return ''
   if (url.startsWith('/') || url.startsWith('http')) return url
-  const width = full ? '' : '/width=450'
+  const width = full ? '' : '/width=550'
   return `https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/${url}${width}/default.jpg`
 }
 
@@ -198,11 +199,6 @@ function isVideo(img: ModelMetaImage): boolean {
 
 function hasCaption(img: ModelMetaImage): boolean {
   return !!(img.seed || img.steps || img.cfg || img.sampler || img.model || img.positive || img.negative)
-}
-
-function badgeColor(type?: string): string | undefined {
-  if (!type) return undefined
-  return MODEL_CATEGORY_COLORS[type]
 }
 
 // ── 文件大小格式化 ──
@@ -228,7 +224,7 @@ function fmtSize(bytes?: number): string {
     <template v-if="meta">
       <!-- Tags -->
       <div class="mm-tags">
-        <Badge v-if="meta.type" :color="badgeColor(meta.type)">{{ meta.type.toUpperCase() }}</Badge>
+        <Badge v-if="meta.type" :color="modelCategoryColor(meta.type)">{{ modelCategoryLabel(meta.type) }}</Badge>
         <Badge v-if="displayBaseModel">{{ displayBaseModel }}</Badge>
       </div>
 

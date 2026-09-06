@@ -245,7 +245,8 @@ onMounted(() => {
 .dash-output-thumb {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  /* 3:4 —— 全局产物卡统一比例 (与历史面板 / 批量预览网格同口径) */
+  aspect-ratio: 3 / 4;
   background: var(--bg3);
   overflow: hidden;
 }
@@ -309,7 +310,7 @@ onMounted(() => {
 
 .dash-output-skeleton {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 3 / 4;
   background: color-mix(in srgb, var(--t3) 12%, transparent);
   border-radius: var(--r-md);
   animation: pulse 1.5s ease-in-out infinite;

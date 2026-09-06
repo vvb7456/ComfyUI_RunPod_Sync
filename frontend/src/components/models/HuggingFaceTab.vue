@@ -334,7 +334,8 @@ function openModelMeta(hit: CivitaiHit) {
 <style scoped>
 .model-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(280px, 22vw, 380px), 1fr));
+  /* 竖版 3:4 卡片: 列宽收窄, 保证一屏至少两行 */
+  grid-template-columns: repeat(auto-fill, minmax(clamp(240px, 18vw, 320px), 1fr));
   gap: clamp(14px, 1.2vw, 22px);
 }
 

@@ -6,7 +6,7 @@
     "backend_error": "无法连接 Dashboard 服务"
   },
   "header": {
-    "queue_history": "队列 / 历史",
+    "queue_history": "队列&历史",
     "model_selector_aria": "选择模型",
     "family_sdxl": "SDXL 系列",
     "family_flux1": "Flux 1 系列",

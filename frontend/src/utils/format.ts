@@ -19,6 +19,34 @@ export function fmtSpeed(bytesPerSec: number): string {
   return bytesPerSec + ' B/s'
 }
 
+/**
+ * 紧凑数字格式 — 卡片 meta 行等空间敏感场景。
+ * GitHub/Civitai 同款国际符号, 中英文用户均可理解, 无需 i18n:
+ *   1234567 → "1.2M", 56780 → "56.8k", ≤999 原样返回 (toLocaleString)。
+ * 完整千分位数字仍走 toLocaleString (详情弹窗等宽裕场景)。
+ */
+export function fmtCompact(v: number): string {
+  if (v == null || isNaN(v)) return '0'
+  const n = Math.floor(v)
+  if (n < 1000) return n.toLocaleString()
+  if (n < 1_000_000) {
+    // 56780 → "56.8k"; 1000 → "1k" (不为 1.0k); 999950+ 进位至 1M
+    const k = n / 1000
+    const r = k >= 100 ? Math.round(k) : Math.round(k * 10) / 10
+    if (r >= 1000) return '1M'
+    return r + 'k'
+  }
+  if (n < 1_000_000_000) {
+    const m = n / 1_000_000
+    const r = m >= 100 ? Math.round(m) : Math.round(m * 10) / 10
+    if (r >= 1000) return '1B'
+    return r + 'M'
+  }
+  const b = n / 1_000_000_000
+  const r = b >= 100 ? Math.round(b) : Math.round(b * 10) / 10
+  return r + 'B'
+}
+
 export function fmtPct(v: number | null | undefined): string {
   return v != null ? v.toFixed(1) + '%' : '—'
 }

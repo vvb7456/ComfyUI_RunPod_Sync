@@ -438,7 +438,7 @@ const totalServiceCount = computed(() => {
       <!-- ── Section 3: 最近生成 (Gallery) ── -->
       <DashboardGallery />
 
-      <!-- ── Section 4: 详细状态与环境 (Diagnostics) ── -->
+      <!-- ── Section 4: 状态与环境 (Diagnostics) ── -->
       <DashboardDiagnostics
         :initial-loading="initialLoading"
         :data="data"

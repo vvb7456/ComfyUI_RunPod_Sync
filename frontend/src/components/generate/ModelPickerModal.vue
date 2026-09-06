@@ -461,7 +461,8 @@ function goToDownloadPage() {
 
 .model-card__img {
   width: 100%;
-  aspect-ratio: 4 / 5;
+  /* 3:4 —— 与模型页 ModelCard / 详情弹窗 gallery 同口径, 竖版素材裁切最少 */
+  aspect-ratio: 3 / 4;
   background: var(--bg-in, var(--bg2));
   overflow: hidden;
   position: relative;

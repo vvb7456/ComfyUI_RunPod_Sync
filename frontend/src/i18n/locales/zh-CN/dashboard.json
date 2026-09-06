@@ -79,7 +79,7 @@
     "retry": "重试"
   },
   "diagnostics": {
-    "title": "详细状态与环境",
+    "title": "状态与环境",
     "summary": "{online} / {total} 服务在线"
   },
   "time": {

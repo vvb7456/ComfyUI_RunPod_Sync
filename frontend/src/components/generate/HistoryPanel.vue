@@ -366,14 +366,15 @@ defineExpose({ setupObserver })
 }
 .history-grid.size-lg .history-card-info { padding: 6px 10px; }
 
-/* ── Card ── */
+/* ── Card ──
+   图区显式 3:4 (与 DashboardGallery / PreviewArea 网格同口径);
+   不再给整卡设 aspect-ratio —— 卡高 = 图区 3:4 + info 行自然高度 */
 .history-card {
   background: var(--bg3);
   border: 1px solid var(--bd);
   border-radius: var(--r);
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0, 0, 0, .2);
-  aspect-ratio: 3 / 4;
   display: flex;
   flex-direction: column;
 }
@@ -383,8 +384,8 @@ defineExpose({ setupObserver })
   display: flex;
   gap: 2px;
   background: var(--bg);
-  flex: 1;
-  min-height: 0;
+  /* 图区 3:4: 宽度由网格列决定, 高度按比例锁定 (与 DashboardGallery 同口径) */
+  aspect-ratio: 3 / 4;
   overflow: hidden;
 }
 /* 每个产物单元格: 相对定位承载角标与 hover 按钮 */

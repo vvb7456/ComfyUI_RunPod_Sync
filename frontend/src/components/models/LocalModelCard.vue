@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { LocalModel } from '@/composables/useLocalModels'
 import { fmtBytes } from '@/utils/format'
-import { MODEL_CATEGORY_COLORS } from '@/utils/constants'
+import { modelCategoryColor, modelCategoryLabel } from '@/utils/constants'
 import ModelCard from './ModelCard.vue'
 import Badge from '@/components/ui/Badge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -44,7 +44,9 @@ const zoomUrl = computed(() => {
 })
 
 // ── Badge ──
-const badgeColor = computed(() => MODEL_CATEGORY_COLORS[props.model.category])
+// 文案/颜色走统一函数 (category 是 MODEL_DIRS key, 直通归一)
+const badgeColor = computed(() => modelCategoryColor(props.model.category))
+const badgeLabel = computed(() => modelCategoryLabel(props.model.category))
 
 // ── Capability flags (extra_model_paths may not support fetch/delete) ──
 const canFetchInfo = computed(() => props.model.can_fetch_info)
@@ -72,7 +74,7 @@ const fetchLabel = computed(() => {
     </template>
 
     <template #meta>
-      <Badge :color="badgeColor">{{ model.category.toUpperCase() }}</Badge>
+      <Badge :color="badgeColor">{{ badgeLabel }}</Badge>
       <Badge v-if="model.base_model">{{ model.base_model }}</Badge>
       <Badge v-else-if="model.architecture && model.architecture !== 'unknown'">{{ model.architecture }}</Badge>
       <span class="mc-size">{{ fmtBytes(model.size_bytes) }}</span>

@@ -79,7 +79,7 @@
     "retry": "Retry"
   },
   "diagnostics": {
-    "title": "Detailed Status & Environment",
+    "title": "Status & Environment",
     "summary": "{online} / {total} Services Online"
   },
   "time": {

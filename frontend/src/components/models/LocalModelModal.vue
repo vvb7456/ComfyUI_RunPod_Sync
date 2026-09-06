@@ -7,7 +7,7 @@ import Badge from '@/components/ui/Badge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import MsIcon from '@/components/ui/MsIcon.vue'
 import { fmtBytes } from '@/utils/format'
-import { MODEL_CATEGORY_COLORS } from '@/utils/constants'
+import { modelCategoryColor, modelCategoryLabel } from '@/utils/constants'
 import { useClipboard } from '@/composables/useClipboard'
 import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
@@ -197,7 +197,7 @@ function openImage(index: number) {
     <div v-else-if="error" class="local-modal-status local-modal-error">{{ error }}</div>
     <template v-if="detail">
       <div class="lm-tags">
-        <Badge v-if="detail.category" :color="MODEL_CATEGORY_COLORS[detail.category]">{{ detail.category.toUpperCase() }}</Badge>
+        <Badge v-if="detail.category" :color="modelCategoryColor(detail.category)">{{ modelCategoryLabel(detail.category) }}</Badge>
         <Badge v-if="detail.base_model">{{ detail.base_model }}</Badge>
         <Badge v-else-if="detail.architecture && detail.architecture !== 'unknown'">{{ detail.architecture }}</Badge>
         <BaseButton v-if="detail.can_fetch_info && !detail.has_info" size="sm" :disabled="enriching" @click="enrich">{{ enriching ? t('models.local.enriching') : t('models.local.fetch_info') }}</BaseButton>

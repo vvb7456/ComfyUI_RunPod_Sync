@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CivitaiHit } from '@/composables/useCivitaiSearch'
-import { MODEL_CATEGORY_COLORS } from '@/utils/constants'
+import { fmtCompact } from '@/utils/format'
+import { modelCategoryColor, modelCategoryLabel } from '@/utils/constants'
 import ModelCard from './ModelCard.vue'
 import Badge from '@/components/ui/Badge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -39,11 +40,12 @@ const imageObj = computed(() => {
 
 const isVideo = computed(() => imageObj.value?.type === 'video')
 
+// 竖版 3:4 卡显示高度升至 ~427px, DPR2 下 450 不够; 550 是 Civitai CDN 标准档
 const imageSrc = computed(() => {
   const url = imageObj.value?.url
   if (!url) return ''
   if (url.startsWith('http')) return url
-  return `${CDN_PREFIX}${url}/width=450/default.jpg`
+  return `${CDN_PREFIX}${url}/width=550/default.jpg`
 })
 
 const zoomUrl = computed(() => {
@@ -54,20 +56,9 @@ const zoomUrl = computed(() => {
   return `${CDN_PREFIX}${url}/default.jpg`
 })
 
-// ── Type badge color ──
-const TYPE_KEY_MAP: Record<string, string> = {
-  checkpoint: 'checkpoints',
-  lora: 'loras',
-  textualinversion: 'embeddings',
-  controlnet: 'controlnet',
-  vae: 'vae',
-  upscaler: 'upscale_models',
-}
-
-const badgeColor = computed(() => {
-  const key = TYPE_KEY_MAP[(props.hit.type || '').toLowerCase()] || ''
-  return MODEL_CATEGORY_COLORS[key] || ''
-})
+// ── Type badge (文案/颜色走统一归一, civitai 单数 type → 目录 key) ──
+const badgeColor = computed(() => modelCategoryColor(props.hit.type))
+const badgeLabel = computed(() => modelCategoryLabel(props.hit.type))
 
 // ── Meta ──
 const baseModel = computed(() => props.hit.version?.baseModel || '')
@@ -78,9 +69,8 @@ const allVersions = computed(() =>
 
 const versionCount = computed(() => allVersions.value.length)
 
-const downloadCount = computed(() =>
-  (props.hit.metrics?.downloadCount || 0).toLocaleString(),
-)
+// 紧凑格式 (56.8k / 1.2M) — 卡片 meta 行空间敏感, 完整千分位留给详情弹窗
+const downloadCount = computed(() => fmtCompact(props.hit.metrics?.downloadCount || 0))
 
 // ── Download button state ──
 const dlState = computed<ModelAggregateState>(() => (props.downloadState as ModelAggregateState) || 'idle')
@@ -169,7 +159,7 @@ const installedTooltip = computed(() =>
       <Badge v-if="allInstalled || partialInstalled" color="#10b981" size="sm" :title="installedTooltip">
         {{ partialInstalled ? `${t('models.downloads.installed')} ${installedVersions.length}/${versionCount}` : t('models.downloads.installed') }}
       </Badge>
-      <Badge :color="badgeColor">{{ hit.type || '' }}</Badge>
+      <Badge :color="badgeColor">{{ badgeLabel }}</Badge>
       <Badge v-if="baseModel">{{ baseModel }}</Badge>
       <Badge v-if="versionCount > 1" :title="t('models.civitai.versions_count', { count: versionCount })">v{{ versionCount }}</Badge>
       <span class="cc-dl-count">

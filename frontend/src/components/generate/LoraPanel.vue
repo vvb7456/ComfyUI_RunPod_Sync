@@ -294,10 +294,6 @@ function cycleApply(lora: LoraEntry) {
   gap: var(--sp-2);
 }
 
-/* Ensure add-card matches selected LoRA card height */
-.lora-grid :deep(.lora-add-card) {
-  aspect-ratio: 3 / 4;
-}
 
 .lora-card {
   background: var(--bg3);
@@ -323,7 +319,9 @@ function cycleApply(lora: LoraEntry) {
 
 .lora-card__img {
   width: 100%;
-  aspect-ratio: 3 / 3.38;
+  /* 3:4 —— 全局素材卡统一比例 (与 ModelCard / picker 同口径);
+     原值 3/3.38 是历史妥协, AddCard 高度对齐已改由 min-height 兜底 */
+  aspect-ratio: 3 / 4;
   background: var(--bg-in, var(--bg2));
   overflow: hidden;
   position: relative;
@@ -524,13 +522,10 @@ function cycleApply(lora: LoraEntry) {
 
 /* Add card matching grid item height */
 .lora-add-card {
-  min-height: 0;
-  aspect-ratio: auto;
-}
-
-.lora-add-card :deep(.add-card) {
   height: 100%;
-  min-height: 180px;
+  /* 3:4 图区 + name + strength ≈ 300px 高, 与 LoRA 卡等高 */
+  min-height: 300px;
+  aspect-ratio: auto;
 }
 
 /* ═══ 窄屏: 横向卡片 (左小缩略图 + 右名字/强度), 与主模型卡片同构 ═══
@@ -540,7 +535,7 @@ function cycleApply(lora: LoraEntry) {
   .lora-grid {
     grid-template-columns: 1fr;
   }
-  .lora-grid :deep(.lora-add-card) {
+  .lora-add-card {
     aspect-ratio: auto;
     flex-direction: row;
     min-height: 56px;

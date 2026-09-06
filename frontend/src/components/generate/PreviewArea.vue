@@ -332,7 +332,8 @@ function metaText(img: PreviewImage): string {
 }
 .gen-preview-grid img {
   width: 100%;
-  aspect-ratio: 1;
+  /* 3:4 —— 全局产物卡统一比例 */
+  aspect-ratio: 3 / 4;
   object-fit: cover;
   cursor: pointer;
   border-radius: var(--r-md);
@@ -340,11 +341,11 @@ function metaText(img: PreviewImage): string {
 }
 .gen-preview-grid img:hover { opacity: .9; }
 
-/* Grid video item: 首帧缩略图 + 播放角标 */
+/* Grid video item: 首帧缩略图 + 播放角标 (3:4, 与图像项同比例) */
 .grid-video-item {
   position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 3 / 4;
   cursor: pointer;
   border-radius: var(--r-md);
   overflow: hidden;

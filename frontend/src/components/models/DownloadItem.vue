@@ -7,7 +7,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import DownloadButton from '@/components/models/DownloadButton.vue'
 import MsIcon from '@/components/ui/MsIcon.vue'
 import UsageBar from '@/components/ui/UsageBar.vue'
-import { MODEL_CATEGORY_COLORS } from '@/utils/constants'
+import { modelCategoryColor, modelCategoryLabel } from '@/utils/constants'
 import { fmtBytes, fmtSpeed } from '@/utils/format'
 
 defineOptions({ name: 'DownloadItem' })
@@ -61,14 +61,9 @@ const modelType = computed(() =>
   props.favoriteItem?.type || props.task?.meta?.model_type || '',
 )
 
-const badgeColor = computed(() => {
-  const t = modelType.value.toLowerCase()
-  const keyMap: Record<string, string> = {
-    checkpoint: 'checkpoints', lora: 'loras', textualinversion: 'embeddings',
-    controlnet: 'controlnet', vae: 'vae', upscaler: 'upscale_models',
-  }
-  return MODEL_CATEGORY_COLORS[keyMap[t] || ''] || ''
-})
+// badge 颜色/文案走统一归一 (civitai 原始 type / HF 驼峰 type / 目录 key 均可命中)
+const badgeColor = computed(() => modelCategoryColor(modelType.value))
+const badgeLabel = computed(() => modelCategoryLabel(modelType.value))
 
 const civitaiUrl = computed(() => {
   const id = props.favoriteItem?.modelId || props.task?.meta?.model_id
@@ -132,7 +127,7 @@ const showProgressRow = computed(() =>
       </div>
       <div class="dli-meta">
         <Badge v-if="isFavorite && installed" color="#10b981" size="sm">{{ t('models.downloads.installed') }}</Badge>
-        <Badge v-if="modelType" :color="badgeColor" size="sm">{{ modelType }}</Badge>
+        <Badge v-if="modelType" :color="badgeColor" size="sm">{{ badgeLabel }}</Badge>
         <Badge v-if="favoriteItem?.baseModel" size="sm">{{ favoriteItem.baseModel }}</Badge>
         <Badge v-if="task?.meta?.base_model" size="sm">{{ task.meta.base_model }}</Badge>
         <Badge v-if="isFavorite && favoriteItem?.versionName" size="sm">{{ favoriteItem.versionName }}</Badge>
