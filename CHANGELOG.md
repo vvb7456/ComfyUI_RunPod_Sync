@@ -8,11 +8,18 @@
 
 - 模型类别 badge 单一事实源：`normalizeModelCategory` / `modelCategoryColor` / `modelCategoryLabel` 统一本地索引、Civitai、HF 白名单、下载任务四条数据管线的 type 归一与文案，迁移 5 个组件移除各自映射表，修复部分类别 badge 无色全灰
 - 下载量紧凑格式化 `fmtCompact`（56.8k / 1.2M），Civitai 卡片 meta 行启用
+- 页面工具栏吸顶：新增 PageTopStack 组件，Models / ComfyUI 页各 tab 的 SectionToolbar（含未保存提示条）通过 Teleport 挂到顶部栈随页面吸顶
 
 ### 重构
 
 - 全局产物 / 素材卡统一 3:4 竖版比例（Dashboard 画廊、历史面板、批量预览、LoRA 卡、模型选择器、模型卡），网格列宽收窄保证一屏至少两行，Civitai 缩略图升级 width=550 适配竖版高度
+- 字体栈规范化：移除 Google Fonts 外链依赖，全局 font-family 改为西文优先 + 系统原生无衬线回退；新增 `--font-tabular` 变量修复等宽混排时汉字错误回退为宋体衬线
 - 简化诊断 / 历史入口标题文案
+
+### 修复
+
+- 页面切换 transform 入场动画引发的吸顶首帧渲染丢失与文档级假滚动条（page-fade 改 opacity-only；DropdownMenu 弃用 `:global()` 规避 compiler-sfc 丢弃后续选择器）
+- Release 说明改用 CHANGELOG.md 自动提取（v0.7.0 起），缺失对应段落则发布失败
 
 ## v0.7.0 — 2026-08-30
 
