@@ -36,6 +36,7 @@ defineOptions({ name: 'PluginsTab' })
 const props = defineProps<{
   online?: boolean
   active?: boolean
+  toolbarTarget?: HTMLElement | null
 }>()
 
 const { t } = useI18n({ useScope: 'global' })
@@ -287,43 +288,46 @@ async function restartNow() {
   <LoadingCenter v-else-if="restarting" size="lg">{{ t('plugins.restart.restarting') }}</LoadingCenter>
 
   <template v-else>
-    <UnsavedBanner
-      :visible="pendingRestart.length > 0 && !restartDismissed"
-      :message="t('plugins.restart.banner_msg')"
-      :save-label="t('plugins.restart.now')"
-      :discard-label="t('plugins.restart.later')"
-      :saving="restarting"
-      @save="restartNow"
-      @discard="restartDismissed = true"
-    />
+    <Teleport :to="toolbarTarget || 'body'" :disabled="!toolbarTarget || !active">
+      <UnsavedBanner
+        :visible="pendingRestart.length > 0 && !restartDismissed"
+        :message="t('plugins.restart.banner_msg')"
+        :save-label="t('plugins.restart.now')"
+        :discard-label="t('plugins.restart.later')"
+        :saving="restarting"
+        :sticky="false"
+        @save="restartNow"
+        @discard="restartDismissed = true"
+      />
 
-    <SectionToolbar>
-      <template #start>
-        <FilterInput v-model="filter" :placeholder="t('plugins.browse.search_placeholder')" />
-        <span class="toolbar-status">
-          {{ stats }}
-          <template v-if="queueProcessing">
-            &nbsp;· <MsIcon name="hourglass_top" /> {{ queueStatus }}
-          </template>
-        </span>
-      </template>
-      <template #end>
-        <BaseButton size="sm" :disabled="loading" @click="() => loadData()">{{ t('plugins.installed.refresh') }}</BaseButton>
-        <BaseButton size="sm" @click="gitModalOpen = true"><MsIcon name="link" /> {{ t('plugins.tabs.git') }}</BaseButton>
-        <BaseSelect v-model="statusFilter" :options="[
-          { value: 'all', label: t('plugins.installed.all_status') },
-          { value: 'installed', label: t('plugins.installed.installed_badge') },
-          { value: 'not-installed', label: t('plugins.browse.not_installed') },
-          { value: 'update', label: t('plugins.installed.has_update') },
-          { value: 'disabled', label: t('plugins.installed.disabled') },
-        ]" size="sm" fit />
-        <BaseSelect v-model="sortBy" :options="[
-          { value: 'stars', label: t('plugins.browse.sort_stars') },
-          { value: 'update', label: t('plugins.browse.sort_update') },
-          { value: 'name', label: t('plugins.browse.sort_name') },
-        ]" size="sm" fit />
-      </template>
-    </SectionToolbar>
+      <SectionToolbar>
+        <template #start>
+          <FilterInput v-model="filter" :placeholder="t('plugins.browse.search_placeholder')" />
+          <span class="toolbar-status">
+            {{ stats }}
+            <template v-if="queueProcessing">
+              &nbsp;· <MsIcon name="hourglass_top" /> {{ queueStatus }}
+            </template>
+          </span>
+        </template>
+        <template #end>
+          <BaseButton size="sm" :disabled="loading" @click="() => loadData()">{{ t('plugins.installed.refresh') }}</BaseButton>
+          <BaseButton size="sm" @click="gitModalOpen = true"><MsIcon name="link" /> {{ t('plugins.tabs.git') }}</BaseButton>
+          <BaseSelect v-model="statusFilter" :options="[
+            { value: 'all', label: t('plugins.installed.all_status') },
+            { value: 'installed', label: t('plugins.installed.installed_badge') },
+            { value: 'not-installed', label: t('plugins.browse.not_installed') },
+            { value: 'update', label: t('plugins.installed.has_update') },
+            { value: 'disabled', label: t('plugins.installed.disabled') },
+          ]" size="sm" fit />
+          <BaseSelect v-model="sortBy" :options="[
+            { value: 'stars', label: t('plugins.browse.sort_stars') },
+            { value: 'update', label: t('plugins.browse.sort_update') },
+            { value: 'name', label: t('plugins.browse.sort_name') },
+          ]" size="sm" fit />
+        </template>
+      </SectionToolbar>
+    </Teleport>
 
     <AlertBanner v-if="error" tone="danger" dense>{{ error }}</AlertBanner>
     <LoadingCenter v-if="loading && unifiedPlugins.length === 0">{{ t('common.status.loading') }}</LoadingCenter>

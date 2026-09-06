@@ -18,7 +18,11 @@ import { remoteHitToMeta } from '@/utils/remote-model-meta'
 
 defineOptions({ name: 'CivitaiTab' })
 
-const props = defineProps<{ active: boolean; initialType?: string }>()
+const props = defineProps<{
+  active: boolean
+  initialType?: string
+  toolbarTarget?: HTMLElement | null
+}>()
 
 const emit = defineEmits<{
   openMeta: [meta: ModelMeta]
@@ -255,39 +259,41 @@ function openCivitaiMeta(hit: CivitaiHit) {
 </script>
 
 <template>
-  <SectionToolbar>
-    <template #start>
-      <SearchInput
-        v-model="queryInput"
-        :placeholder="t('models.civitai.search_placeholder')"
-        :loading="civitaiLoading"
-        full
-        @search="handleSearch"
-      />
-      <CivitaiFilterPopover
-        :types="selectedTypes"
-        :base-models="selectedBaseModels"
-        :type-options="typeOptions"
-        :base-model-options="baseModelOptions"
-        :disabled="!facetsLoaded"
-        :exact-mode="exactQuery"
-        @apply="handleFilterApply"
-      />
-      <BaseSelect
-        class="civitai-sort"
-        v-model="civitaiSort"
-        :options="sortOptions"
-        :disabled="exactQuery"
-        size="sm"
-        fit
-        teleport
-        @change="handleSortChange"
-      />
-      <span v-if="civitaiTotalHits > 0" class="toolbar-status">
-        {{ t('models.civitai.total_results', { count: civitaiTotalHits.toLocaleString() }) }}
-      </span>
-    </template>
-  </SectionToolbar>
+  <Teleport :to="toolbarTarget || 'body'" :disabled="!toolbarTarget || !active">
+    <SectionToolbar>
+      <template #start>
+        <SearchInput
+          v-model="queryInput"
+          :placeholder="t('models.civitai.search_placeholder')"
+          :loading="civitaiLoading"
+          full
+          @search="handleSearch"
+        />
+        <CivitaiFilterPopover
+          :types="selectedTypes"
+          :base-models="selectedBaseModels"
+          :type-options="typeOptions"
+          :base-model-options="baseModelOptions"
+          :disabled="!facetsLoaded"
+          :exact-mode="exactQuery"
+          @apply="handleFilterApply"
+        />
+        <BaseSelect
+          class="civitai-sort"
+          v-model="civitaiSort"
+          :options="sortOptions"
+          :disabled="exactQuery"
+          size="sm"
+          fit
+          teleport
+          @change="handleSortChange"
+        />
+        <span v-if="civitaiTotalHits > 0" class="toolbar-status">
+          {{ t('models.civitai.total_results', { count: civitaiTotalHits.toLocaleString() }) }}
+        </span>
+      </template>
+    </SectionToolbar>
+  </Teleport>
 
   <!-- Error -->
   <EmptyState v-if="civitaiError" icon="error" :message="civitaiError" />

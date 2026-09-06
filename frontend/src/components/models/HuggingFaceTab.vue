@@ -17,7 +17,10 @@ import { remoteHitToMeta } from '@/utils/remote-model-meta'
 
 defineOptions({ name: 'HuggingFaceTab' })
 
-const props = defineProps<{ active: boolean }>()
+const props = defineProps<{
+  active: boolean
+  toolbarTarget?: HTMLElement | null
+}>()
 
 const emit = defineEmits<{
   openMeta: [meta: ModelMeta]
@@ -249,41 +252,43 @@ function openModelMeta(hit: CivitaiHit) {
 </script>
 
 <template>
-  <SectionToolbar>
-    <template #start>
-      <FilterInput
-        v-model="searchQuery"
-        :placeholder="t('models.local.filter_placeholder')"
-      />
-      <span v-if="filteredModels.length > 0" class="toolbar-status">
-        {{ t('models.huggingface.total_results', { count: filteredModels.length.toLocaleString() }) }}
-      </span>
-    </template>
-    <template #end>
-      <BaseSelect
-        v-model="selectedTypes"
-        :options="typeOptions"
-        :all-text="t('models.huggingface.all_types')"
-        multiple
-        size="sm"
-        fit
-        searchable
-        teleport
-        :search-placeholder="t('models.huggingface.filter_type')"
-      />
-      <BaseSelect
-        v-model="selectedBaseModels"
-        :options="baseModelOptions"
-        :all-text="t('models.huggingface.all_base_models')"
-        multiple
-        size="sm"
-        fit
-        searchable
-        teleport
-        :search-placeholder="t('models.huggingface.filter_base_model')"
-      />
-    </template>
-  </SectionToolbar>
+  <Teleport :to="toolbarTarget || 'body'" :disabled="!toolbarTarget || !active">
+    <SectionToolbar>
+      <template #start>
+        <FilterInput
+          v-model="searchQuery"
+          :placeholder="t('models.local.filter_placeholder')"
+        />
+        <span v-if="filteredModels.length > 0" class="toolbar-status">
+          {{ t('models.huggingface.total_results', { count: filteredModels.length.toLocaleString() }) }}
+        </span>
+      </template>
+      <template #end>
+        <BaseSelect
+          v-model="selectedTypes"
+          :options="typeOptions"
+          :all-text="t('models.huggingface.all_types')"
+          multiple
+          size="sm"
+          fit
+          searchable
+          teleport
+          :search-placeholder="t('models.huggingface.filter_type')"
+        />
+        <BaseSelect
+          v-model="selectedBaseModels"
+          :options="baseModelOptions"
+          :all-text="t('models.huggingface.all_base_models')"
+          multiple
+          size="sm"
+          fit
+          searchable
+          teleport
+          :search-placeholder="t('models.huggingface.filter_base_model')"
+        />
+      </template>
+    </SectionToolbar>
+  </Teleport>
 
   <!-- 卡片网格 (增量渲染前 visibleCount 张) -->
   <div v-if="filteredModels.length > 0" class="model-grid">

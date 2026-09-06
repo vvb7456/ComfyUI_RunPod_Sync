@@ -464,8 +464,9 @@ defineExpose({ openMenu, closeMenu })
 
 <template>
   <div class="dd-menu" @keydown="onTriggerKeydown">
-    <!-- 触发器插槽 -->
-    <div ref="triggerRef" @click="toggle">
+    <!-- 触发器插槽。包裹 div 跟随 dd-menu 宽度: dd-menu 被
+         外部拉宽时 (如移动端通栏), slot 触发器才能随之全宽。 -->
+    <div ref="triggerRef" class="dd-menu__trigger" @click="toggle">
       <slot :open="open" :toggle="toggle" />
     </div>
 
@@ -665,6 +666,10 @@ defineExpose({ openMenu, closeMenu })
   display: inline-block;
 }
 
+.dd-menu__trigger {
+  width: 100%;
+}
+
 .dd-panel {
   position: fixed;
   top: 0;
@@ -845,7 +850,11 @@ defineExpose({ openMenu, closeMenu })
   background: transparent;
   border-color: transparent;
 }
-:global([data-theme="light"]) .dd-logo--invert-dark {
+/* 浅色主题下不反色: 祖先选择器 + scoped 后缀即可命中, 不用 :global()。
+   :global() 写法在 @vue/compiler-sfc 3.5.31 会丢弃 :global() 段之后的选择器,
+   产物退化为裸 [data-theme="light"] —— data-theme 挂在 <html> 上, 等于给
+   <html> 加 1px border, 造成 2px 文档级假滚动条 (与 .content 真滚动条并排)。 */
+[data-theme="light"] .dd-logo--invert-dark {
   filter: none;
   background: var(--bg-logo-pad, #ffffff);
   border: 1px solid var(--bd);

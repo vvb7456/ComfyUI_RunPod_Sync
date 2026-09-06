@@ -10,6 +10,7 @@ import { useComfySSE } from '@/composables/useComfySSE'
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
 import MsIcon from '@/components/ui/MsIcon.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import PageTopStack from '@/components/ui/PageTopStack.vue'
 import TabSwitcher from '@/components/ui/TabSwitcher.vue'
 import UnsavedBanner from '@/components/ui/UnsavedBanner.vue'
 import ConsoleSection from '@/components/comfyui/ConsoleSection.vue'
@@ -26,6 +27,7 @@ const { confirm } = useConfirm()
 
 // 页面按用户任务划分为三个稳定工作区。插件目录是浏览目的地，不是临时任务抽屉。
 const activeTab = ref('overview')
+const topStack = ref<InstanceType<typeof PageTopStack> | null>(null)
 const tabs = computed(() => [
   { key: 'overview', label: t('comfyui.tabs.overview'), icon: 'monitoring' },
   { key: 'settings', label: t('comfyui.tabs.settings'), icon: 'tune' },
@@ -165,30 +167,32 @@ async function onTabChange(next: string) {
 
 <template>
   <div class="page-body">
-    <TabSwitcher :title="t('comfyui.title')" :model-value="activeTab" :tabs="tabs" @update:model-value="onTabChange">
-      <template #title-extra>
-        <a
-          v-if="effectiveComfyUrl"
-          :href="effectiveComfyUrl"
-          target="_blank"
-          rel="noopener"
-          :title="t('comfyui.open')"
-          class="title-launch-icon"
-        >
-          <MsIcon name="open_in_new" size="xs" />
-        </a>
-      </template>
+    <PageTopStack ref="topStack" :enabled="activeTab === 'plugins'">
+      <TabSwitcher :title="t('comfyui.title')" :model-value="activeTab" :tabs="tabs" @update:model-value="onTabChange">
+        <template #title-extra>
+          <a
+            v-if="effectiveComfyUrl"
+            :href="effectiveComfyUrl"
+            target="_blank"
+            rel="noopener"
+            :title="t('comfyui.open')"
+            class="title-launch-icon"
+          >
+            <MsIcon name="open_in_new" size="xs" />
+          </a>
+        </template>
 
-      <template #extra>
-        <span v-if="status" class="page-actions">
-          <template v-if="status.online">
-            <BaseButton size="sm" @click="comfyStop"><MsIcon name="stop" /> {{ t('common.btn.stop') }}</BaseButton>
-            <BaseButton size="sm" @click="comfyRestart"><MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}</BaseButton>
-          </template>
-          <BaseButton v-else size="sm" @click="comfyStart"><MsIcon name="play_arrow" /> {{ t('common.btn.start') }}</BaseButton>
-        </span>
-      </template>
-    </TabSwitcher>
+        <template #extra>
+          <span v-if="status" class="page-actions">
+            <template v-if="status.online">
+              <BaseButton size="sm" @click="comfyStop"><MsIcon name="stop" /> {{ t('common.btn.stop') }}</BaseButton>
+              <BaseButton size="sm" @click="comfyRestart"><MsIcon name="restart_alt" /> {{ t('common.btn.restart') }}</BaseButton>
+            </template>
+            <BaseButton v-else size="sm" @click="comfyStart"><MsIcon name="play_arrow" /> {{ t('common.btn.start') }}</BaseButton>
+          </span>
+        </template>
+      </TabSwitcher>
+    </PageTopStack>
 
     <!-- 未保存守卫 banner (仅 settings tab 显示) -->
     <UnsavedBanner
@@ -214,7 +218,7 @@ async function onTabChange(next: string) {
     </div>
 
     <div v-show="activeTab === 'plugins'" class="tab-panel">
-      <PluginsTab :online="status?.online" :active="activeTab === 'plugins'" />
+      <PluginsTab :online="status?.online" :active="activeTab === 'plugins'" :toolbar-target="topStack?.toolbarTarget" />
     </div>
   </div>
 </template>

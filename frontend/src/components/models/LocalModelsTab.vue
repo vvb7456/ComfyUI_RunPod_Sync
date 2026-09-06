@@ -16,6 +16,7 @@ defineOptions({ name: 'LocalModelsTab' })
 
 const props = defineProps<{
   active?: boolean
+  toolbarTarget?: HTMLElement | null
 }>()
 
 const emit = defineEmits<{
@@ -75,43 +76,45 @@ function openMeta(m: LocalModel) {
 </script>
 
 <template>
-  <SectionToolbar>
-    <template #start>
-      <FilterInput
-        v-model="textFilter"
-        :placeholder="t('models.local.filter_placeholder')"
-      />
-      <span class="toolbar-status">
-        <template v-if="batchProgress.running">
-          {{ t('models.local.fetching_progress', { current: batchProgress.current, total: batchProgress.total, filename: batchProgress.filename }) }}
-        </template>
-        <template v-else>
-          {{ t('models.local.total_models', { count: displayCount, infoCount: displayInfoCount }) }}
-        </template>
-      </span>
-    </template>
-    <template #end>
-      <BaseSelect
-        v-model="categoryFilter"
-        :options="categoryOptions"
-        size="sm"
-        fit
-      />
-      <BaseSelect
-        v-model="folderFilter"
-        :options="folderOptions"
-        size="sm"
-        fit
-        :disabled="categoryFilter === 'all' || categoryFilter === 'default'"
-      />
-      <BaseButton size="sm" @click="loadModels">
-        {{ t('models.local.refresh') }}
-      </BaseButton>
-      <BaseButton size="sm" variant="primary" @click="fetchAll(filteredModels)">
-        {{ t('models.local.fetch_all') }}
-      </BaseButton>
-    </template>
-  </SectionToolbar>
+  <Teleport :to="toolbarTarget || 'body'" :disabled="!toolbarTarget || !active">
+    <SectionToolbar>
+      <template #start>
+        <FilterInput
+          v-model="textFilter"
+          :placeholder="t('models.local.filter_placeholder')"
+        />
+        <span class="toolbar-status">
+          <template v-if="batchProgress.running">
+            {{ t('models.local.fetching_progress', { current: batchProgress.current, total: batchProgress.total, filename: batchProgress.filename }) }}
+          </template>
+          <template v-else>
+            {{ t('models.local.total_models', { count: displayCount, infoCount: displayInfoCount }) }}
+          </template>
+        </span>
+      </template>
+      <template #end>
+        <BaseSelect
+          v-model="categoryFilter"
+          :options="categoryOptions"
+          size="sm"
+          fit
+        />
+        <BaseSelect
+          v-model="folderFilter"
+          :options="folderOptions"
+          size="sm"
+          fit
+          :disabled="categoryFilter === 'all' || categoryFilter === 'default'"
+        />
+        <BaseButton size="sm" @click="loadModels">
+          {{ t('models.local.refresh') }}
+        </BaseButton>
+        <BaseButton size="sm" variant="primary" @click="fetchAll(filteredModels)">
+          {{ t('models.local.fetch_all') }}
+        </BaseButton>
+      </template>
+    </SectionToolbar>
+  </Teleport>
 
   <LoadingCenter v-if="localLoading" />
 

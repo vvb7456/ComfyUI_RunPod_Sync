@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import TabSwitcher from '@/components/ui/TabSwitcher.vue'
 import Drawer from '@/components/ui/Drawer.vue'
 import DrawerTrigger from '@/components/ui/DrawerTrigger.vue'
+import PageTopStack from '@/components/ui/PageTopStack.vue'
 import ImagePreview from '@/components/ui/ImagePreview.vue'
 import CivitaiModelModal from '@/components/models/CivitaiModelModal.vue'
 import LocalModelModal from '@/components/models/LocalModelModal.vue'
@@ -30,6 +31,7 @@ const route = useRoute()
 const validTabs = new Set(['local', 'huggingface', 'civitai'])
 const initialTab = validTabs.has(route.query.tab as string) ? (route.query.tab as string) : 'local'
 const activeTab = ref(initialTab)
+const topStack = ref<InstanceType<typeof PageTopStack> | null>(null)
 const tabs = computed(() => [
   { key: 'local', label: t('models.tabs.local'), icon: 'inventory_2' },
   { key: 'huggingface', label: t('models.tabs.huggingface'), icon: 'verified' },
@@ -139,29 +141,31 @@ function openPreviewSingle(url: string) {
 <template>
   <div class="page-body">
     <!-- 触发器走 TabSwitcher 的默认插槽: 与 tab 同处一行 -->
-    <TabSwitcher :title="t('models.title')" v-model="activeTab" :tabs="tabs">
-      <DrawerTrigger
-        class="models-drawer-trigger"
-        icon="download"
-        :label="t('models.drawer.title')"
-        :badge="inProgressCount"
-        :pulse="isRunning"
-        :alert="hasUnseenFailure"
-        :alert-text="t('models.drawer.has_failed')"
-        @click="openDrawer"
-      />
-    </TabSwitcher>
+    <PageTopStack ref="topStack">
+      <TabSwitcher :title="t('models.title')" v-model="activeTab" :tabs="tabs">
+        <DrawerTrigger
+          class="models-drawer-trigger"
+          icon="download"
+          :label="t('models.drawer.title')"
+          :badge="inProgressCount"
+          :pulse="isRunning"
+          :alert="hasUnseenFailure"
+          :alert-text="t('models.drawer.has_failed')"
+          @click="openDrawer"
+        />
+      </TabSwitcher>
+    </PageTopStack>
 
     <div v-show="activeTab === 'local'" class="tab-panel">
-      <LocalModelsTab :active="activeTab === 'local'" @open-local="openLocal" @open-preview="openPreviewSingle" />
+      <LocalModelsTab :active="activeTab === 'local'" :toolbar-target="topStack?.toolbarTarget" @open-local="openLocal" @open-preview="openPreviewSingle" />
     </div>
 
     <div v-show="activeTab === 'huggingface'" class="tab-panel">
-      <HuggingFaceTab :active="activeTab === 'huggingface'" @open-meta="openMeta" @open-preview="openPreviewSingle" />
+      <HuggingFaceTab :active="activeTab === 'huggingface'" :toolbar-target="topStack?.toolbarTarget" @open-meta="openMeta" @open-preview="openPreviewSingle" />
     </div>
 
     <div v-show="activeTab === 'civitai'" class="tab-panel">
-      <CivitaiTab :active="activeTab === 'civitai'" :initial-type="civitaiInitialType" @open-meta="openMeta" @open-preview="openPreviewSingle" />
+      <CivitaiTab :active="activeTab === 'civitai'" :initial-type="civitaiInitialType" :toolbar-target="topStack?.toolbarTarget" @open-meta="openMeta" @open-preview="openPreviewSingle" />
     </div>
 
     <!-- ═══ 收藏&下载抽屉 (常驻挂载 Drawer, slot 内容首开才挂载) ═══

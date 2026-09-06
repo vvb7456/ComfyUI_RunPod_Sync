@@ -673,9 +673,16 @@
         /* tab-panel: tab 内容面板 (v-show 常驻挂载, 组件不卸载, 状态与
            watch(active) 激活刷新语义完整保留)。display:none → block 时
            CSS animation 自动重播, 以此获得进入动画, 无需 <Transition>。 */
+
+        /* page-fade 只用 opacity: 页面根节点上带 transform (哪怕过渡结束后已
+           归位) 会让 sticky header (background-attachment:fixed + mask) 的
+           首帧合成层丢失渐变背景 —— 渲染成纯 var(--bg) 底色, 任意滚动触发
+           重绘才恢复正确 ambient 渐变。实测 (Chrome 150): opacity-only 或
+           完全无过渡均无此现象; 恢复 transform (不论有无 will-change) 必现。
+           位移感由 .tab-panel / 各页面自己的内容层动画承担, 不放在页面根。 */
         .page-fade-enter-active {
-            transition: opacity .20s cubic-bezier(0.16, 1, 0.3, 1), transform .20s cubic-bezier(0.16, 1, 0.3, 1);
-            will-change: opacity, transform;
+            transition: opacity .20s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: opacity;
         }
 
         .page-fade-leave-active {
@@ -685,7 +692,6 @@
 
         .page-fade-enter-from {
             opacity: 0;
-            transform: translateY(6px);
         }
 
         .page-fade-leave-to {
@@ -707,7 +713,6 @@
             .page-fade-enter-active,
             .page-fade-leave-active {
                 transition: none !important;
-                transform: none !important;
             }
 
             .tab-panel {
